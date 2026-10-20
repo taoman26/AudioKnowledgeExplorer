@@ -1,0 +1,12 @@
+build/
+build_*/
+*.db
+*.db-wal
+*.db-shm
+*.bin
+*.gguf
+
+# maintainer-only notes (kept locally, not tracked)
+mockups/
+CLAUDE.md
+design.md
