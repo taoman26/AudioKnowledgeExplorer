@@ -147,6 +147,8 @@ private:
     void onRecordingChanged(qint64 id);
     void onProgress(qint64 id, const QString& stage, double overall);
     void updateQueueStatus();
+    bool modelMissing() const;                                // the model the scheduler would load is not on disk
+    void updateModelBanner();
     void onSearchTextChanged(const QString& text);
     void showSuggestions();
     void hideSuggestions();
@@ -194,6 +196,8 @@ private:
     QPushButton* m_emptyAdd = nullptr;
     QPushButton* m_emptyClear = nullptr;
     FilterChipBar* m_chips = nullptr;
+    QWidget* m_modelBanner = nullptr;                          // shown while the whisper model file is missing
+    QLabel* m_modelBannerText = nullptr;
     QTimer* m_facetTimer = nullptr;
     EmptyKind m_emptyKind = EmptyKind::None;
     void updateEmptyState();

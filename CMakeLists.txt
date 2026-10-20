@@ -25,6 +25,11 @@ set(AKE_WHISPER_DIR "" CACHE PATH "whisper.cpp source directory (empty = fetch f
 set(AKE_WHISPER_TAG "v1.7.6" CACHE STRING "whisper.cpp tag to fetch when AKE_WHISPER_DIR is empty")
 set(_ake_shared ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
+if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+    # ggml's OpenMP threads wait on each other so badly on Haiku that more threads are slower (8 threads: 4x slower than 1);
+    # its own thread pool is 5x faster there (design.md measurements)
+    set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+endif()
 set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)

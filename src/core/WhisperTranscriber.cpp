@@ -37,7 +37,11 @@ WhisperTranscriber::~WhisperTranscriber()
 
 int WhisperTranscriber::defaultThreads()
 {
+#ifdef __HAIKU__
+    return qBound(1, QThread::idealThreadCount(), 3); // measured on Haiku (8 CPUs): 3 threads is fastest, 5+ are slower again
+#else
     return qBound(1, QThread::idealThreadCount(), 8); // beyond ~8 threads whisper.cpp stops scaling
+#endif
 }
 
 bool WhisperTranscriber::load(const QString& modelPath, QString* error)

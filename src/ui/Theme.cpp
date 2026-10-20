@@ -90,6 +90,8 @@ QString Theme::styleSheet() const
         "QPushButton#filterChip { background: @accentBg@; color: @accent@; border: 1px solid @accent@; border-radius: 12px; padding: 3px 12px; font-size: 12px; }"
         "QPushButton#filterChip:hover { background: @accent@; color: white; }"
         "QLabel#folderMessage { color: @sub@; font-size: 12px; }"
+        "QWidget#modelBanner { background: @chip@; border: 1px solid @red@; border-radius: 6px; }"
+        "QWidget#modelBanner QLabel { color: @text@; font-size: 12px; }"
         "QLabel#folderMessage[error=\"true\"] { color: @red@; }"
         "#miniPlayer { background: @panel@; border-top: 1px solid @line@; }"
         "QLabel#playerTitle { color: @text@; font-size: 12px; font-weight: bold; }"

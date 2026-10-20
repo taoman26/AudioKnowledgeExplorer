@@ -137,13 +137,15 @@ private slots:
             { "v.mkv",  { "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "flac" }, 610 },
             { "v.webm", { "-c:v", "libvpx", "-c:a", "libopus", "-ar", "48000" },     700 },
         };
+        int made = 0;
         for (const Case& c : cases) {
             // the video stream comes first: the decoder has to pick the audio one
             QStringList args = { "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x120:d=2", "-f", "lavfi", "-i",
                                  QString("sine=frequency=%1:duration=2").arg(c.hz) };
             args += c.codecs;
             args << "-shortest" << p(c.file);
-            QVERIFY2(QProcess::execute("ffmpeg", args) == 0, c.file);
+            if (QProcess::execute("ffmpeg", args) != 0) { qWarning("no encoder for %s in this ffmpeg: skipped", c.file); continue; }   // e.g. Haiku's ffmpeg has no libx264
+            ++made;
             std::vector<float> pcm; AudioInfo info; QString err;
             QVERIFY2(dec.decode(p(c.file), &pcm, &info, &err), qPrintable(QString(c.file) + ": " + err));
             const double sec = double(pcm.size()) / kDecodeSampleRate;
@@ -155,7 +157,11 @@ private slots:
         }
         // a video without any sound is reported, not silently registered as an empty transcript
         QStringList mute = { "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x120:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", p("mute.mp4") };
-        QVERIFY(QProcess::execute("ffmpeg", mute) == 0);
+        if (QProcess::execute("ffmpeg", mute) != 0) {
+            if (!made) QSKIP("this ffmpeg cannot encode any of the video fixtures");
+            return;
+        }
+        if (!made) QSKIP("this ffmpeg cannot encode any of the video fixtures");
         std::vector<float> pcm; QString err;
         QVERIFY(!dec.decode(p("mute.mp4"), &pcm, nullptr, &err));
         QVERIFY2(!err.isEmpty(), "an error message is expected");

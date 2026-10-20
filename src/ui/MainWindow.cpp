@@ -9,6 +9,7 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QSqlQuery>
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMenu>
@@ -206,7 +207,31 @@ void MainWindow::applySettings()
     const Settings st(*m_db);
     if (m_scheduler) m_scheduler->setConfig(st.analysisConfig());   // read when the next job starts
     applyThemeName(st.theme());
+    updateModelBanner();
     emit settingsChanged();
+}
+
+bool MainWindow::modelMissing() const
+{
+    if (!m_scheduler) return false;
+    const AnalysisConfig& c = m_scheduler->config();
+    return !QFileInfo::exists(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath);
+}
+
+void MainWindow::updateModelBanner()
+{
+    if (!m_modelBanner) return;
+    bool show = false;
+    if (m_db && modelMissing()) {                 // with no recording yet the empty state leads the way
+        QSqlQuery q(m_db->handle());
+        show = q.exec("SELECT 1 FROM recordings LIMIT 1") && q.next();
+    }
+    if (show) {
+        const AnalysisConfig& c = m_scheduler->config();
+        m_modelBannerText->setText(tr("文字起こしのモデルが見つからないため、録音を解析できません。\n%1 にモデルファイル（ggml）を置くか、設定で別のモデルを選んでください。")
+                                       .arg(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath));
+    }
+    m_modelBanner->setVisible(show);
 }
 
 void MainWindow::buildMenus()
@@ -336,6 +361,19 @@ void MainWindow::buildCardArea()
     v->addLayout(head);
     m_chips = new FilterChipBar;
     v->addWidget(m_chips);
+    m_modelBanner = new QWidget;
+    m_modelBanner->setObjectName("modelBanner");
+    auto* bh = new QHBoxLayout(m_modelBanner);
+    bh->setContentsMargins(12, 8, 12, 8);
+    m_modelBannerText = new QLabel;
+    m_modelBannerText->setWordWrap(true);
+    auto* bannerBtn = new QPushButton(tr("設定を開く"));
+    bannerBtn->setCursor(Qt::PointingHandCursor);
+    bh->addWidget(m_modelBannerText, 1);
+    bh->addWidget(bannerBtn);
+    m_modelBanner->hide();
+    v->addWidget(m_modelBanner);
+    connect(bannerBtn, &QPushButton::clicked, this, [this] { showSettingsDialog(); });
     connect(m_chips, &FilterChipBar::removeRequested, this, [this](int kind, qint64 key) { removeCondition(kind, key); });
     connect(m_chips, &FilterChipBar::clearAllRequested, this, [this] { clearConditions(); });
     m_facetTimer = new QTimer(this);                 // the sidebar is rebuilt after the click that changed the filter is over
@@ -406,6 +444,7 @@ void MainWindow::setDatabase(Database* db)
     if (m_model) m_model->setSortOrder(m_sortOrder);
     m_cards->setModel(m_model);
     if (m_tokenizer) setTokenizer(m_tokenizer);   // the search service belongs to the database
+    updateModelBanner();
     m_detailPane->setDatabase(db, m_tokenizer);
     m_transcript->setDatabase(db, m_tokenizer);
     refreshCards();
@@ -444,6 +483,7 @@ void MainWindow::setScheduler(JobScheduler* scheduler)
     connect(m_cards, &CardListView::cardActionRequested, this, [this](qint64 id, CardAction a) {
         if (a == CardAction::Analyze || a == CardAction::Retry) m_scheduler->enqueue(id);
     });
+    updateModelBanner();
     connect(m_analyzeAll, &QAction::triggered, this, [this] { m_scheduler->enqueueAllNew(); });
     connect(m_pause, &QAction::toggled, this, [this](bool on) { m_scheduler->setPaused(on); });
     connect(m_cancelAll, &QAction::triggered, this, [this] { m_scheduler->cancelAll(); });
@@ -669,6 +709,7 @@ void MainWindow::onScanFinished(qint64, const ScanResult& r)
     if (!(r.added || r.updated || r.moved || r.removed)) return;
     refreshCards();
     // new or changed recordings: analyse them by themselves unless the user turned that off
+    updateModelBanner();
     if ((r.added || r.updated) && m_scheduler && m_db && Settings(*m_db).autoAnalyze()) m_scheduler->enqueueAllNew();
 }
 

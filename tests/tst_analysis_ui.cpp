@@ -4,10 +4,12 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStatusBar>
+#include <QTemporaryDir>
 #include <QtTest>
 
 #include "core/Database.h"
 #include "core/JobScheduler.h"
+#include "core/Settings.h"
 #include "core/SqlText.h"
 #include "ui/CardListView.h"
 #include "ui/MainWindow.h"
@@ -194,6 +196,29 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(!sched->isBusy(), 10000);
         QCOMPARE(state(a), CardState::Done);
         QCOMPARE(state(b), CardState::Done);
+    }
+
+    void missingModelShowsBannerUntilItExists()
+    {
+        QTemporaryDir dir;
+        const QString model = dir.filePath("ggml-test.bin");
+        start();
+        Settings(db).set(Settings::kModelPath, model);   // applySettings() reads the stored value
+        QWidget* banner = w->findChild<QWidget*>("modelBanner");
+        QVERIFY(banner);
+        w->applySettings();
+        QVERIFY(!banner->isVisible());              // no recording yet: the empty state leads the way
+
+        add("a.mp3");
+        w->applySettings();
+        QVERIFY(banner->isVisible());
+        QVERIFY(banner->findChild<QLabel*>()->text().contains(model));
+
+        QFile f(model);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.close();
+        w->applySettings();
+        QVERIFY(!banner->isVisible());
     }
 };
 
