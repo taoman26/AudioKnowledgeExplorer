@@ -44,6 +44,52 @@ ctest --test-dir build --output-on-failure
 手元の whisper.cpp を使うなら `-DAKE_WHISPER_DIR=<checkout>` を付けます。
 `GGML_NATIVE` が有効なので、**ビルドしたバイナリを他のマシンに配ることはできません**(ソースからのビルド前提です)。
 Haiku でもビルドして動作を確認しています(`pkgman install cmake ninja qt6_base_devel qt6_multimedia_devel sqlite_devel ffmpeg6_devel`)。
+Haiku には MeCab のパッケージが無いので、そのままでは n-gram 版になり、読みの近い語の検索は使えません。使うには、次のとおり MeCab と辞書を自分でビルドします。
+
+### Haiku で MeCab を使う(ソースからビルド)
+MeCab 0.996 と JUMAN 辞書(UTF-8)を、ユーザー領域の `~/config/non-packaged` に入れます。Debian の配布元の tarball を使い、取得後に sha256 を確かめます。
+
+```sh
+P=$HOME/config/non-packaged
+mkdir -p ~/mecab-build && cd ~/mecab-build
+B=https://deb.debian.org/debian/pool/main/m
+curl -LO $B/mecab/mecab_0.996.orig.tar.gz
+curl -LO $B/mecab-jumandic/mecab-jumandic_7.0-20130310.orig.tar.gz
+sha256sum mecab_0.996.orig.tar.gz mecab-jumandic_7.0-20130310.orig.tar.gz
+#  e073325783135b72e666145c781bb48fada583d5224fb2490fb6c1403ba69c59  mecab_0.996.orig.tar.gz
+#  eaf216758edee9a159bc3d02507007318686b9537943268c4565cc1f9ef07f15  mecab-jumandic_7.0-20130310.orig.tar.gz
+
+# 本体(`config.guess` が最近の Haiku を判定できないので --build を指定します)
+tar xzf mecab_0.996.orig.tar.gz && cd mecab-0.996
+./configure --build=x86_64-unknown-haiku --prefix=$P --bindir=$P/bin --libdir=$P/lib \
+    --includedir=$P/develop/headers --sysconfdir=$P/settings --libexecdir=$P/lib \
+    --datarootdir=$P/data --with-charset=utf8
+make -j4 && make install
+cd ..
+
+# `mecab-config` は libexec を $P/libexec と答えるので、実際の場所へのリンクを張ります
+mkdir -p $P/libexec && ln -sfn $P/lib/mecab $P/libexec/mecab
+
+# 辞書(UTF-8 に変換して作るので数分かかります)
+tar xzf mecab-jumandic_7.0-20130310.orig.tar.gz && cd mecab-jumandic-7.0-20130310
+PATH=$P/bin:$PATH ./configure --build=x86_64-unknown-haiku --with-mecab-config=$P/bin/mecab-config \
+    --with-charset=utf8 --with-dicdir=$P/lib/mecab/dic/jumandic
+PATH=$P/bin:$PATH make && PATH=$P/bin:$PATH make install
+
+# 設定ファイルの辞書を JUMAN にします
+sed -i "s#^dicdir = .*#dicdir = $P/lib/mecab/dic/jumandic#" $P/settings/mecabrc
+echo "症外が発生しました" | $P/bin/mecab        # 「症 / 外 / が / 発生 …」と読み付きで出れば成功
+```
+
+その後、アプリの CMake に場所を教えて作り直します。
+```sh
+cmake -S . -B build -G Ninja -DAKE_WHISPER_DIR=<whisper.cpp checkout> \
+    -DMECAB_INCLUDE_DIR=$P/develop/headers -DMECAB_LIBRARY=$P/lib/libmecab.so
+cmake --build build
+```
+`tokenizer=mecab` と出れば有効です(`build/ake_cli --db x.db tokenize 症外` で確認できます)。
+注意: Haiku では環境変数 `LIBRARY_PATH` を設定しないでください(ランタイムローダーの検索パスを置き換えるため、bash や make が起動しなくなります)。
+すでに n-gram で解析した録音のタグ・キーワードは、再解析すると MeCab の結果になります。
 
 ## モデルの用意
 文字起こしには whisper の ggml モデルが必要です(同梱していません)。
@@ -73,10 +119,10 @@ build/AudioKnowledgeExplorer
 ## 既知の制限(アルファ版)
 - **主な対象は日本語です。** 他言語は whisper の自動判定に任せていて、十分には確認していません。
 - 文字起こしの精度はモデル次第です。誤変換は残ります(探せることを優先した設計です)。
-- 音楽や一定の唸りのような、音声以外の調性のある音は検出できません(幻覚が出ることがあります)。非常に静かな声(-60 dB 未満)は無音として扱います。
+- 音楽や一定の唸りのような、音声以外の調性のある音は検出できません(幻覚が出ることがあります)。極端に静かな声(約 -75 dB 未満)は無音として扱います。
 - タグは1録音につき最大8個で、まだ荒い精度です。小さなライブラリでは絞り込みの効果が出にくいです。
 - 確認した環境は Ubuntu 22.04(WSL2)と Haiku R1/beta6 だけです。macOS・Windows は未確認です。
-- Haiku: 文字起こしは OpenMP を使わない構成(自動で切り替え)・3スレッドが最速でした。20分の録音の解析に約12分(small・beam 5)かかります。MeCab が無いため n-gram 版で動き、読みの近い語の検索は使えません。再生は Qt Multimedia 経由です。BFS 属性への書き込みはありません。
+- Haiku: 文字起こしは OpenMP を使わない構成(自動で切り替え)・3スレッドが最速でした。20分の録音の解析に約12分(small・beam 5)かかります。MeCab を入れていない場合は n-gram 版で動き、読みの近い語の検索は使えません(入れ方は上の「Haiku で MeCab を使う」)。再生は Qt Multimedia 経由です。BFS 属性への書き込みはありません。
 - 検索の絞り込み件数は、上位500件までを数えています。
 - 録音ファイルの属性・タグを書き戻す機能はありません(読み取り専用)。
 
