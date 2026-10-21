@@ -122,6 +122,29 @@ build/AudioKnowledgeExplorer
 コマンドラインの確認用ツール `ake_cli`(`--db x.db add-folder / scan / analyze / search …`)もあります。
 ダミー音声は `tools/make_fixtures.sh <outdir>` で作れます。
 
+### Ubuntu 22.04 + fcitx5 で、検索ボックスに日本語が入力できないとき
+Ubuntu 22.04 には、**Qt6 用の fcitx5 のプラグインがありません**(`fcitx5-frontend-qt5` は Qt5 用で、Qt6 のアプリには使えません)。`QT_IM_MODULE=fcitx` を設定していても、Qt6 のアプリ(このアプリを含む)は fcitx5 を見つけられず、日本語を入力できません。Qt の `platforminputcontexts` に `fcitx5` が無いか、確認してください(`ls /usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/`)。
+
+そのときは、`fcitx5-qt` から、Qt6 用のプラグインだけをビルドして入れます。Ubuntu 22.04 の fcitx5 は 5.0.14 なので、同じ版のタグを使います。
+
+```sh
+sudo apt install cmake ninja-build git extra-cmake-modules qt6-base-private-dev \
+    libfcitx5utils-dev libxkbcommon-dev libxcb1-dev libx11-xcb-dev
+git clone --depth 1 --branch 5.0.14 https://github.com/fcitx/fcitx5-qt.git
+cmake -S fcitx5-qt -B fcitx5-qt/build -G Ninja -DENABLE_QT4=OFF -DENABLE_QT5=OFF \
+    -DENABLE_QT6=ON -DBUILD_ONLY_PLUGIN=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build fcitx5-qt/build
+```
+
+できた `fcitx5-qt/build/qt6/platforminputcontext/libfcitx5platforminputcontextplugin.so` を、次のどちらかに置きます。
+
+- **このアプリだけに使う**(環境変数は不要で、ダブルクリックで起動しても有効): アプリの実行ファイルの隣に `platforminputcontexts/` を作って入れる。
+  `mkdir -p build/platforminputcontexts && cp fcitx5-qt/build/qt6/platforminputcontext/libfcitx5platforminputcontextplugin.so build/platforminputcontexts/`
+  (`build/` を消したり、クリーンビルドしたりすると無くなるので、そのときはもう一度コピーします。)
+- **すべての Qt6 アプリに使う**: `~/.local/lib/qt6/plugins/platforminputcontexts/` に入れて、`QT_PLUGIN_PATH=$HOME/.local/lib/qt6/plugins` を設定する(`~/.bashrc` に書くと、ターミナルから起動したアプリに効きます)。デスクトップのメニューやダブルクリックから起動するアプリに効かせるには、ログイン時に読み込まれる場所に設定が必要です(xrdp などでは、`/etc/xrdp/startwm.sh` のように、環境によって場所が違います)。
+
+Ubuntu 22.04(WSL2 + xrdp、fcitx5 5.0.14 + mozc)で、この手順で日本語の入力ができることを確認しました。ibus を使っている環境や、新しい Ubuntu(Qt6 用のパッケージがある場合は、そちらを入れるのが簡単です)では、確認していません。
+
 ## 既知の制限(アルファ版)
 - **主な対象は日本語です。** 他言語は whisper の自動判定に任せていて、十分には確認していません。
 - 文字起こしの精度はモデル次第です。誤変換は残ります(探せることを優先した設計です)。
