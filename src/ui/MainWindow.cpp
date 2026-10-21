@@ -229,8 +229,9 @@ void MainWindow::updateModelBanner()
     }
     if (show) {
         const AnalysisConfig& c = m_scheduler->config();
-        m_modelBannerText->setText(tr("文字起こしのモデルが見つからないため、録音を解析できません。\n%1 にモデルファイル（ggml）を置くか、設定で別のモデルを選んでください。")
-                                       .arg(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath));
+        m_modelBannerText->setText(tr("文字起こしのモデルが見つからないため、録音を解析できません。\n%1 にモデルファイル（ggml）を置くか、設定で別のモデルを選んでください。\n入手先: %2")
+                                       .arg(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath,
+                                            QString::fromLatin1(Settings::kModelDownloadUrl)));
     }
     m_modelBanner->setVisible(show);
 }

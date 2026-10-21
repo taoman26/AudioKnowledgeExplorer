@@ -67,7 +67,7 @@ SettingsDialog::SettingsDialog(Settings& settings, QWidget* parent)
     m_modelNote = new QLabel;
     m_modelNote->setObjectName("folderMessage");
     m_modelNote->setWordWrap(true);
-    m_modelNote->setMinimumHeight(m_modelNote->fontMetrics().lineSpacing() * 3 + 4);   // the warning is three lines; never clip it
+    m_modelNote->setMinimumHeight(m_modelNote->fontMetrics().lineSpacing() * 4 + 4);   // a long path, the advice and the warning: never clip them
     form->addRow(QString(), m_modelNote);
 
     m_language = new QComboBox;
@@ -166,7 +166,10 @@ void SettingsDialog::updateModelNote()
     QString path = m_model->currentData().toString();
     if (path.isEmpty()) path = AnalysisConfig::defaultModelPath();
     const bool ok = QFileInfo(path).isFile();
-    m_modelNote->setText(ok ? path : tr("モデルファイルが見つかりません: %1\n解析するには、このファイルを置くか、別のモデルを選んでください。").arg(path));
+    const QString about = Settings::describeModel(QFileInfo(path).completeBaseName());
+    m_modelNote->setText(ok ? (about.isEmpty() ? path : path + QLatin1Char('\n') + about)
+                            : tr("モデルファイルが見つかりません: %1\n解析するには、このファイルを置くか、別のモデルを選んでください。\n入手先: %2")
+                                  .arg(path, QString::fromLatin1(Settings::kModelDownloadUrl)));
     m_modelNote->setProperty("error", !ok);
     m_modelNote->style()->unpolish(m_modelNote);
     m_modelNote->style()->polish(m_modelNote);

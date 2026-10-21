@@ -54,6 +54,10 @@ public:
     // ggml-*.bin files in `dir`, smallest first (the choice list of the settings dialog)
     static QList<ModelInfo> installedModels(const QString& dir);
     static QString modelDirectory();   // <AppData>/models
+    static constexpr const char* kModelDownloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/tree/main";
+    // One line on what a model is good for, from its file base name ("ggml-large-v3-turbo-q5_0"); "" for an unknown name.
+    // What it says about speed comes from our own measurements (design.md section 2), the rest is the usual size ladder.
+    static QString describeModel(const QString& baseName);
 
 private:
     Database& m_db;

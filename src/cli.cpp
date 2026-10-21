@@ -36,7 +36,7 @@ int main(int argc, char** argv)
     p.addOption({ "no-recursive", "add-folder: do not descend into subfolders." });
     p.addOption({ "exclude", "add-folder: comma separated globs.", "globs" });
     p.addOption({ "model", "transcribe: ggml whisper model file.", "file" });
-    p.addOption({ "lang", "transcribe: language (auto, ja, en, ...). Default auto.", "code", "auto" });
+    p.addOption({ "lang", "transcribe/analyze: language (auto, ja, en, ...). Default ja.", "code", "ja" });
     p.addOption({ "max-seconds", "transcribe: only the first N seconds.", "n" });
     p.addOption({ "suppress-nst", "transcribe: forbid non-speech tokens like (音声)." });
     p.addOption({ "threads", "transcribe: thread count (default auto).", "n" });

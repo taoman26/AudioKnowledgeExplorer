@@ -1,5 +1,7 @@
 #include "core/Settings.h"
 
+#include <QObject>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QSqlQuery>
@@ -65,8 +67,8 @@ AnalysisConfig Settings::analysisConfig() const
 {
     AnalysisConfig c;
     c.modelPath = value(kModelPath).trimmed();                // empty: AnalysisConfig::defaultModelPath() is used later
-    const QString lang = value(kLanguage, "auto").trimmed().toLower();
-    c.language = lang.isEmpty() ? QStringLiteral("auto") : lang;
+    const QString lang = value(kLanguage, AnalysisConfig::kDefaultLanguage).trimmed().toLower();
+    c.language = lang.isEmpty() ? QString::fromLatin1(AnalysisConfig::kDefaultLanguage) : lang;
     c.threads = intValue(kThreads, 0, 0, kMaxThreads);
     c.beamSize = intValue(kBeam, AnalysisConfig::kDefaultBeamSize, 0, kMaxBeam);
     c.suppressNst = boolValue(kSuppressNst, true);
@@ -95,6 +97,24 @@ QList<Settings::ModelInfo> Settings::installedModels(const QString& dir)
     for (const QFileInfo& f : files) out.append({ f.absoluteFilePath(), f.completeBaseName(), f.size() });
     std::sort(out.begin(), out.end(), [](const ModelInfo& a, const ModelInfo& b) { return a.sizeBytes < b.sizeBytes; });
     return out;
+}
+
+QString Settings::describeModel(const QString& baseName)
+{
+    QString n = baseName.toLower();
+    if (n.startsWith("ggml-")) n = n.mid(5);
+    QString quant;
+    const int q = n.indexOf("-q");
+    if (q > 0 && n.mid(q + 2).at(0).isDigit()) { quant = QObject::tr("量子化版(小さく速い。精度は少し下がる)"); n = n.left(q); }
+    QString what;
+    if (n == "tiny" || n == "tiny.en") what = QObject::tr("最小。速いが、日本語の精度は低い");
+    else if (n == "base" || n == "base.en") what = QObject::tr("軽量。日本語の精度は低め");
+    else if (n == "small" || n == "small.en") what = QObject::tr("標準。軽いが、日本語では誤変換が多め(8コアで20分の録音に約7分)");
+    else if (n == "medium" || n == "medium.en") what = QObject::tr("small より高精度、そのぶん重い");
+    else if (n == "large-v3-turbo") what = QObject::tr("日本語の精度が高いお勧め。重い(8コアで録音とほぼ同じ時間、メモリ約2GB)");
+    else if (n.startsWith("large")) what = QObject::tr("最も高精度だが、重く遅い");
+    else return QString();
+    return quant.isEmpty() ? what : what + QObject::tr("。") + quant;
 }
 
 } // namespace ake

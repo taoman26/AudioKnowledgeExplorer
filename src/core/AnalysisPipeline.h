@@ -10,7 +10,10 @@ namespace ake {
 
 struct AnalysisConfig {
     QString modelPath;             // ggml whisper model; empty = default location
-    QString language = "auto";
+    // Japanese by default: the automatic detection (first 30 s) took a Japanese interview for Norwegian Nynorsk and wrote Latin
+    // letters. "auto" stays available in the settings for other languages.
+    QString language = QString::fromLatin1(kDefaultLanguage);
+    static constexpr const char* kDefaultLanguage = "ja";
     int threads = 0;               // 0 = automatic
     // Beam search width; 0 = greedy. Measured on a 20 min Japanese recording with the small model: greedy fell into a
     // repetition loop for 11.5 min, width 5 not at all (1.5x the time); width 8 looped again, so don't just raise it.

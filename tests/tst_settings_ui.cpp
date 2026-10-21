@@ -130,6 +130,21 @@ private slots:
         SettingsDialog again(st);
         QCOMPARE(again.modelCombo()->currentData().toString(), dir.filePath("ggml-gone.bin"));
     }
+    void japaneseIsTheDefaultLanguageAndModelsComeWithAdvice()
+    {
+        Settings st(db);
+        SettingsDialog d(st);
+        QCOMPARE(d.languageCombo()->currentData().toString(), QString("ja"));    // not the automatic detection
+        QVERIFY(d.languageCombo()->findData("auto") >= 0);                       // which stays a choice
+        QTemporaryDir dir;
+        QFile f(dir.filePath("ggml-large-v3-turbo.bin"));
+        QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); f.close();
+        d.addCustomModel(f.fileName());
+        QVERIFY2(d.modelNote()->text().contains(f.fileName()) && d.modelNote()->text().contains("お勧め"), qPrintable(d.modelNote()->text()));
+        d.addCustomModel(dir.filePath("ggml-small.bin"));                         // not there: where to get one
+        QVERIFY(d.modelNote()->text().contains("見つかりません"));
+        QVERIFY(d.modelNote()->text().contains(Settings::kModelDownloadUrl));
+    }
     void anUnknownLanguageCodeStaysSelectable()
     {
         Settings st(db);
