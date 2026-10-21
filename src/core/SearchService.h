@@ -68,6 +68,7 @@ public:
     // Weights: title > keywords > summary > notes (fts_recording column order: title, summary, tags, notes).
     static constexpr double kTitleWeight = 10, kSummaryWeight = 2, kTagWeight = 5, kNotesWeight = 1;
     static constexpr int kSnippetBefore = 30, kSnippetAfter = 70;
+    static constexpr int kMinHomophoneKana = 3;  // shorter words (会/回/階) have too many homophones to add them to a result
     static constexpr int kContextSegments = 8;   // at most this many segments on each side go into a snippet
 
 private:
@@ -88,7 +89,10 @@ private:
     // The neighbouring segments of segment `idx` (user corrections included), enough to fill the snippet window
     void contextOf(qint64 transcriptId, int idx, QString* before, QString* after) const;
     // Nothing matched by spelling: candidates by reading. `exactIds[i]` = recordings that contain term i by spelling.
-    SearchResult searchSimilar(const QList<Term>& terms, const QList<QSet<qint64>>& exactIds, int limit) const;
+    // By sound. exactReadingOnly: only readings identical to the typed word's (homophones: 障害 / 症外), only for words of at
+    // least kMinHomophoneKana kana; used to add to a result that has spelling hits. Otherwise (nothing matched by spelling)
+    // readings that differ a little count too (PhoneticMatch::allowedDistance).
+    SearchResult searchSimilar(const QList<Term>& terms, const QList<QSet<qint64>>& exactIds, int limit, bool exactReadingOnly = false) const;
     void fillMissingPhonetics() const;   // readings of segments indexed before they existed (once, on the first use)
 
     bool run(QSqlQuery& q) const;   // exec + remember the first error

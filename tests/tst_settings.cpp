@@ -28,6 +28,7 @@ private slots:
         QCOMPARE(c.language, QString("auto"));
         QCOMPARE(c.threads, 0);
         QCOMPARE(c.beamSize, 5);                                        // accuracy first by default
+        QVERIFY(c.suppressNst);                                         // no "(音声)" instead of words
         QVERIFY(c.modelPath.isEmpty());                                 // default location is resolved by the pipeline
     }
     void setGetOverwriteRemoveRoundTrip()

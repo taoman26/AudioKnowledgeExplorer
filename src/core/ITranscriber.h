@@ -23,12 +23,14 @@ struct TranscribeOptions {
     std::optional<float> entropyThold;      // retry hotter when the text compresses better than this (default 2.4)
     std::optional<float> logprobThold;      // ... or when the average log-probability is below this (default -1.0)
     std::optional<float> temperatureInc;    // size of each retry step (default 0.2; 0 turns retrying off)
+    std::optional<bool> suppressNst;        // forbid non-speech tokens such as "(音声)" / "[音楽]" (whisper default: false)
     std::optional<int> maxTextCtx;          // tokens of previous text given to the decoder (default 16384)
 };
 
 struct TranscriptResult {
     QString language; // detected or requested, ISO 639-1
     QString model;    // model file base name, e.g. "ggml-small"
+    QString settings; // how it was decoded, e.g. "beam=5 threads=3 lang=auto": stored with the transcript (transcripts.model_version)
     QList<TranscriptSegment> segments;
 };
 

@@ -60,6 +60,7 @@ private slots:
         QVERIFY(!SpeechGate::analyze(std::vector<float>(10 * kSr, 0.f)).hasSpeech());
         QVERIFY(!SpeechGate::analyze(voiced(10, 0.0002f)).hasSpeech());          // a voice at about -75 dB: inaudible, not speech
         QVERIFY(SpeechGate::analyze(voiced(10, 0.05f)).hasSpeech());             // a quiet voice at about -30 dB still is
+        QVERIFY(SpeechGate::analyze(voiced(10, 0.01f)).hasSpeech());             // so is one at about -60 dB (it would be silence by the old fixed threshold): silence is relative to the recording
     }
     void aVoiceIsSpeech()
     {

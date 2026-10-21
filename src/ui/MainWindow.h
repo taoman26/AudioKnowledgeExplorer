@@ -84,7 +84,12 @@ public:
     void setFolderChooser(FolderChooser chooser) { m_chooser = std::move(chooser); }
     bool addFolder(const QString& path);                      // register + scan; false (and a status message) on failure
     FolderDialog* createFolderDialog();                       // the dialog, parented and wired, not yet shown
-    void showFolderDialog();                                  // modal
+    void showFolderDialog(qint64 selectFolderId = 0);         // modal; the folder preselected
+    // Takes a folder out of the library (its recordings' texts go with it; the audio files stay). Asks first.
+    using Confirm = std::function<bool(const QString& title, const QString& text)>;
+    void setRemoveConfirm(Confirm c) { m_removeConfirm = std::move(c); }
+    bool removeFolderAsked(qint64 folderId);
+    QAction* rescanAction() const { return m_rescanAll; }
     QAction* addFolderAction() const { return m_addFolder; }
     QAction* folderDialogAction() const { return m_folderDialog; }
     QLabel* scanLabel() const { return m_scanLabel; }
@@ -185,6 +190,8 @@ private:
     QueueStatusWidget* m_queueStatus = nullptr;
     ScanService* m_scan = nullptr;
     FolderChooser m_chooser;
+    Confirm m_removeConfirm;
+    QAction* m_rescanAll = nullptr;
     QAction* m_addFolder = nullptr;
     QAction* m_settingsAction = nullptr;
     QPalette m_systemPalette;

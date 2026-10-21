@@ -71,6 +71,20 @@ private slots:
         QCOMPARE(out.segments[1].startMs, qint64(1500));
         QCOMPARE(out.segments[1].endMs, qint64(3000));
     }
+    void decodeSettingsAreStoredWithTheTranscript()
+    {
+        TranscriptRepository repo(db);
+        TranscriptResult r = sample("ja", { "text" });
+        r.settings = "beam=5 threads=3 lang=auto";
+        QVERIFY(repo.save(recId, r) > 0);
+        TranscriptResult back;
+        QVERIFY(repo.loadCurrent(recId, &back));
+        QCOMPARE(back.settings, QString("beam=5 threads=3 lang=auto"));
+        QSqlQuery q(db.handle());
+        QVERIFY(q.exec("SELECT model_version FROM transcripts WHERE is_current=1"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString(), QString("beam=5 threads=3 lang=auto"));
+    }
     void emptyLanguageAndModelAreStorable() // regression: null QString bound as NULL violated NOT NULL columns
     {
         TranscriptRepository repo(db);
@@ -181,6 +195,7 @@ private slots:
         QList<double> progress;
         QVERIFY2(w.transcribe(pcm, {}, &r, &err, [&](double f) { progress << f; return true; }), qPrintable(err));
         QCOMPARE(r.language, QString("en")); // auto-detected
+        QVERIFY2(r.settings.contains("greedy") && r.settings.contains("lang=auto") && r.settings.contains("threads="), qPrintable(r.settings));
         QVERIFY(!r.segments.isEmpty());
         QString all;
         for (const auto& s : r.segments) all += s.text + " ";

@@ -291,6 +291,29 @@ private slots:
         QVERIFY(!r.hits[0].similar);
         QVERIFY(!r.hits[0].highlights.isEmpty());
     }
+    void homophonesAreAddedAfterTheSpellingHitsEvenWhenSomethingMatchedBySpelling()
+    {
+        if (!tok->hasReadings()) QSKIP("needs a tokenizer with readings (MeCab)");
+        const qint64 exact = addRecording("sound/exact.mp3", { "システム障害が発生しました。" });
+        const qint64 homo = addRecording("sound/homophone.mp3", { "システム症外が発生しました。" });         // しょうがい, as the recogniser wrote it
+        addRecording("sound/other.mp3", { "牛乳を買います。" });
+        const SearchResult r = find("障害");
+        QVERIFY(!r.similar);                                                    // the result has spelling hits: not a "nothing found" result
+        QCOMPARE(ids(r), QList<qint64>({ exact, homo }));                        // spelling first, then the homophone
+        QVERIFY(!r.hits[0].similar);
+        QVERIFY(r.hits[1].similar);
+        QCOMPARE(r.hits[1].distance, 0);
+        QVERIFY(r.hits[1].snippet.contains("症外"));
+        // a reading that merely resembles the typed word is not added next to spelling hits (that is for "nothing found")
+        addRecording("sound/near.mp3", { "システム小外が発生しました。" });                                  // しょうがい too: identical reading, so it is added
+        QCOMPARE(find("障害").hits.size(), 3);
+        addRecording("sound/similar.mp3", { "システム傷害罪です。" });                                       // しょうがいざい: contains the reading
+        QVERIFY(find("障害").hits.size() >= 3);
+        // two kana: too many homophones to add them
+        const qint64 rain = addRecording("sound/rain.mp3", { "今日は雨が降ります。" });
+        addRecording("sound/candy.mp3", { "飴を舐めます。" });                                                // あめ
+        QCOMPARE(ids(find("雨")), QList<qint64>({ rain }));
+    }
     void closerSoundsComeFirstAndShortWordsAreNotMatched()
     {
         if (!tok->hasReadings()) QSKIP("needs a tokenizer with readings (MeCab)");

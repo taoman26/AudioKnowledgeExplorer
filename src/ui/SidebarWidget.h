@@ -26,11 +26,14 @@ public:
     const SidebarData& data() const { return m_data; }
 
     QTreeWidgetItem* findItem(Kind kind, qint64 key) const;
+    void showFolderMenu(const QPoint& pos);          // the right-click menu of a folder row (also called by tests)
     static QString folderLabel(const QString& path);
 
 signals:
     void filterChanged(const ake::RecordingFilter& filter);
     void allTagsRequested();
+    void folderManageRequested(qint64 folderId);     // right-click on a folder
+    void folderRemoveRequested(qint64 folderId);
 
 private:
     void rebuild();

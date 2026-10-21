@@ -20,8 +20,9 @@ qint64 TranscriptRepository::save(qint64 recordingId, const TranscriptResult& r,
     q.addBindValue(recordingId);
     if (!q.exec()) return fail(q.lastError().text());
 
-    q.prepare("INSERT INTO transcripts(recording_id,language,model,created_at,is_current) VALUES(?,?,?,?,1)");
+    q.prepare("INSERT INTO transcripts(recording_id,language,model,model_version,created_at,is_current) VALUES(?,?,?,?,?,1)");
     q.addBindValue(recordingId); q.addBindValue(sqlText(r.language)); q.addBindValue(sqlText(r.model));
+    q.addBindValue(sqlText(r.settings));
     q.addBindValue(QDateTime::currentSecsSinceEpoch());
     if (!q.exec()) return fail(q.lastError().text()); // also fails on an unknown recording (foreign key)
     const qint64 tid = q.lastInsertId().toLongLong();
@@ -39,13 +40,14 @@ qint64 TranscriptRepository::save(qint64 recordingId, const TranscriptResult& r,
 bool TranscriptRepository::loadCurrent(qint64 recordingId, TranscriptResult* out) const
 {
     QSqlQuery q(m_db.handle());
-    q.prepare("SELECT id,language,model FROM transcripts WHERE recording_id=? AND is_current=1 ORDER BY id DESC LIMIT 1");
+    q.prepare("SELECT id,language,model,model_version FROM transcripts WHERE recording_id=? AND is_current=1 ORDER BY id DESC LIMIT 1");
     q.addBindValue(recordingId);
     if (!q.exec() || !q.next()) return false;
     const qint64 tid = q.value(0).toLongLong();
     *out = {};
     out->language = q.value(1).toString();
     out->model = q.value(2).toString();
+    out->settings = q.value(3).toString();
     q.prepare("SELECT start_ms,end_ms,COALESCE(edited_text,text) FROM segments WHERE transcript_id=? ORDER BY idx");
     q.addBindValue(tid);
     if (!q.exec()) return false;

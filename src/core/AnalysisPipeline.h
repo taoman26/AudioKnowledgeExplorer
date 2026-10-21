@@ -18,6 +18,10 @@ struct AnalysisConfig {
     // Whisper is confident about words it hears in white noise ("ご視聴ありがとうございました"). See SpeechGate.
     bool speechGate = true;
     int beamSize = kDefaultBeamSize;
+    // Forbid whisper's non-speech tokens ("(音声)", "[音楽]"). On a recording from an IC recorder small answered 93% of the
+    // time with "(音声)" although people were talking; with the tokens forbidden it wrote the words (which of two near-identical
+    // inputs collapsed was a matter of luck: -10 dB bad, -7 good, -5.4 bad). See design.md.
+    bool suppressNst = true;
     static constexpr int kDefaultBeamSize = 5;
 
     static QString defaultModelPath(); // <AppData>/models/ggml-small.bin

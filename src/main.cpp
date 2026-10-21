@@ -116,8 +116,8 @@ int main(int argc, char** argv)
     w.setScheduler(&scheduler);
     w.setScanService(&scanner);
     QObject::connect(&watcher, &ake::IFolderWatcher::changeSuspected, &scanner, &ake::ScanService::scanAll);
-    watcher.start(ake::Settings(db).scanIntervalSeconds());
-    QObject::connect(&w, &ake::MainWindow::settingsChanged, [&] { watcher.start(ake::Settings(db).scanIntervalSeconds()); });
+    watcher.start(ake::Settings(db).watchFolders() ? ake::Settings(db).scanIntervalSeconds() : 0);
+    QObject::connect(&w, &ake::MainWindow::settingsChanged, [&] { watcher.start(ake::Settings(db).watchFolders() ? ake::Settings(db).scanIntervalSeconds() : 0); });
     scanner.scanAll();                  // pick up changes made while the app was closed
     scheduler.resumeInterrupted(); // jobs left over from the previous run continue
     if (p.isSet(analyzeAll)) scheduler.enqueueAllNew();

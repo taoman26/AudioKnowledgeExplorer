@@ -85,6 +85,7 @@ bool WhisperTranscriber::transcribe(const std::vector<float>& pcm, const Transcr
     if (options.entropyThold) p.entropy_thold = *options.entropyThold;
     if (options.logprobThold) p.logprob_thold = *options.logprobThold;
     if (options.temperatureInc) p.temperature_inc = *options.temperatureInc;
+    if (options.suppressNst) p.suppress_nst = *options.suppressNst;
     if (options.maxTextCtx) p.n_max_text_ctx = *options.maxTextCtx;
     p.n_threads = options.threads > 0 ? options.threads : defaultThreads();
 
@@ -103,6 +104,14 @@ bool WhisperTranscriber::transcribe(const std::vector<float>& pcm, const Transcr
     if (rc != 0) return fail(QStringLiteral("whisper_full failed (code %1)").arg(rc));
 
     out->model = m_modelName;
+    QStringList used = { options.beamSize > 0 ? QStringLiteral("beam=%1").arg(options.beamSize) : QStringLiteral("greedy"),
+                         QStringLiteral("threads=%1").arg(p.n_threads), QStringLiteral("lang=%1").arg(QString::fromLatin1(lang)) };
+    if (options.entropyThold) used << QStringLiteral("entropy=%1").arg(*options.entropyThold);
+    if (options.logprobThold) used << QStringLiteral("logprob=%1").arg(*options.logprobThold);
+    if (options.temperatureInc) used << QStringLiteral("temp-inc=%1").arg(*options.temperatureInc);
+    if (options.suppressNst && *options.suppressNst) used << QStringLiteral("suppress-nst");
+    if (options.maxTextCtx) used << QStringLiteral("max-ctx=%1").arg(*options.maxTextCtx);
+    out->settings = used.join(' ');
     out->language = QString::fromLatin1(whisper_lang_str(whisper_full_lang_id(m_ctx)));
     const int n = whisper_full_n_segments(m_ctx);
     for (int i = 0; i < n; ++i) {

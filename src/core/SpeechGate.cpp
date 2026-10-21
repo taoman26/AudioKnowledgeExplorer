@@ -75,13 +75,22 @@ SpeechGate::Result SpeechGate::analyze(const std::vector<float>& pcm)
         flat[f] = float(std::exp(logSum / bins) / (sum / bins));
     }
     const size_t windows = frames / kFramesPerWindow;
-    r.speech.resize(windows);
-    size_t speechy = 0;
+    std::vector<float> wdb(windows), wflat(windows);
     for (size_t w = 0; w < windows; ++w) {
         double d = 0, fl = 0;
         for (int k = 0; k < kFramesPerWindow; ++k) { d += db[w * kFramesPerWindow + size_t(k)]; fl += flat[w * kFramesPerWindow + size_t(k)]; }
-        d /= kFramesPerWindow; fl /= kFramesPerWindow;
-        const bool ok = d > kQuietDb && fl < kMaxFlatness;
+        wdb[w] = float(d / kFramesPerWindow);
+        wflat[w] = float(fl / kFramesPerWindow);
+    }
+    // "silence" is relative to how loud the recording is: a voice recorded at -40 dB must not count as silence
+    std::vector<float> sorted(wdb);
+    std::sort(sorted.begin(), sorted.end());
+    const float loud = sorted[std::min(sorted.size() - 1, size_t(double(sorted.size()) * 0.95))];
+    r.quietDb = std::clamp(loud - kQuietBelowLoudDb, kQuietFloorDb, kQuietDb);
+    r.speech.resize(windows);
+    size_t speechy = 0;
+    for (size_t w = 0; w < windows; ++w) {
+        const bool ok = wdb[w] > r.quietDb && wflat[w] < kMaxFlatness;
         r.speech[w] = ok;
         speechy += ok ? 1 : 0;
     }

@@ -76,6 +76,34 @@ private slots:
         QCOMPARE(st.scanIntervalSeconds(), 120);
         QCOMPARE(d.threadsCombo()->itemText(d.threadsCombo()->findData(0)), QString("自動"));
     }
+    void watchingTheFoldersIsAChoiceOfItsOwn()
+    {
+        Settings st(db);
+        QVERIFY(st.watchFolders());                                              // on by default
+        {
+            SettingsDialog d(st);
+            QVERIFY(d.watchBox()->isChecked());
+            QVERIFY(d.scanIntervalCombo()->isEnabled());
+            d.watchBox()->setChecked(false);
+            QVERIFY(!d.scanIntervalCombo()->isEnabled());                         // the interval means nothing while not watching
+            d.scanIntervalCombo()->setCurrentIndex(d.scanIntervalCombo()->findData(300));
+            d.accept();
+        }
+        QVERIFY(!st.watchFolders());
+        QCOMPARE(st.scanIntervalSeconds(), 300);                                 // the interval is kept for when it is turned on again
+        {
+            SettingsDialog d(st);
+            QVERIFY(!d.watchBox()->isChecked());
+            d.watchBox()->setChecked(true);
+            d.accept();
+        }
+        QVERIFY(st.watchFolders());
+        st.set(Settings::kScanInterval, "0");                                    // what older versions stored for "never"
+        QVERIFY(!st.watchFolders());
+        SettingsDialog old(st);
+        QVERIFY(!old.watchBox()->isChecked());
+        QCOMPARE(old.scanIntervalCombo()->currentData().toInt(), Settings::kDefaultScanIntervalS);
+    }
     void modelChoiceListsInstalledModelsCustomFilesAndWarnsWhenMissing()
     {
         Settings st(db);

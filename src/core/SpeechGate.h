@@ -17,13 +17,16 @@ public:
     static constexpr int kSampleRate = 16000;
     static constexpr int kFrame = 512;                 // 32 ms
     static constexpr int kFramesPerWindow = 16;        // 0.512 s windows
-    static constexpr float kQuietDb = -60.f;           // below this a window is silence
+    static constexpr float kQuietDb = -60.f;           // at most this: below it a window is silence (loud recordings)
+    static constexpr float kQuietFloorDb = -75.f;      // ... and at least this (a voice below this is inaudible)
+    static constexpr float kQuietBelowLoudDb = 45.f;   // a quiet recording: silence is 45 dB under its 95th-percentile window
     static constexpr float kMaxFlatness = 0.25f;       // at or above this a window is noise-like
     static constexpr double kMinSpeechRatio = 0.02;    // a recording with less speech-like audio than this has no speech
     static constexpr double kMinCoverage = 0.3;        // a segment whose span is less speech-like than this is dropped
 
     struct Result {
         std::vector<bool> speech;                      // per window: could hold speech
+        float quietDb = SpeechGate::kQuietDb;          // the silence threshold used for this recording
         double speechRatio = 0;                        // share of windows that could
         bool hasSpeech() const { return speech.empty() || speechRatio >= kMinSpeechRatio; }   // too short to judge: let it through
         static double windowSeconds() { return double(kFrame) * kFramesPerWindow / kSampleRate; }
