@@ -101,11 +101,21 @@ SettingsDialog::SettingsDialog(Settings& settings, QWidget* parent)
     m_auto = new QCheckBox(tr("新しい録音を自動で解析する"));
     m_auto->setChecked(settings.autoAnalyze());
     form2->addRow(QString(), m_auto);
+    m_watch = new QCheckBox(tr("フォルダを常時監視して、新しい録音を見つける"));
+    m_watch->setChecked(settings.watchFolders());
+    form2->addRow(QString(), m_watch);
     m_scan = new QComboBox;
-    fillInts(m_scan, { { 0, tr("自動で確認しない") }, { 15, tr("15 秒ごと") }, { 60, tr("1 分ごと") }, { 300, tr("5 分ごと") },
+    fillInts(m_scan, { { 15, tr("15 秒ごと") }, { 60, tr("1 分ごと") }, { 300, tr("5 分ごと") },
                        { 900, tr("15 分ごと") }, { 3600, tr("1 時間ごと") } },
-             settings.scanIntervalSeconds(), [this](int sec) { return tr("%1 秒ごと").arg(sec); });
-    form2->addRow(tr("フォルダの確認"), m_scan);
+             settings.scanIntervalSeconds() > 0 ? settings.scanIntervalSeconds() : Settings::kDefaultScanIntervalS,
+             [this](int sec) { return tr("%1 秒ごと").arg(sec); });
+    form2->addRow(tr("確認の間隔"), m_scan);
+    m_scan->setEnabled(m_watch->isChecked());
+    connect(m_watch, &QCheckBox::toggled, m_scan, &QWidget::setEnabled);
+    auto* watchNote = new QLabel(tr("監視しないときは、起動時と「ライブラリ ▸ フォルダを今すぐ確認」(F5)でだけ確認します。"));
+    watchNote->setObjectName("folderMessage");
+    watchNote->setWordWrap(true);
+    form2->addRow(QString(), watchNote);
     v->addLayout(form2);
 
     // --- appearance
@@ -169,6 +179,7 @@ void SettingsDialog::accept()
     m_settings.setInt(Settings::kBeam, m_quality->currentData().toInt());
     m_settings.setInt(Settings::kThreads, m_threads->currentData().toInt());
     m_settings.setBool(Settings::kAutoAnalyze, m_auto->isChecked());
+    m_settings.setBool(Settings::kScanWatch, m_watch->isChecked());
     m_settings.setInt(Settings::kScanInterval, m_scan->currentData().toInt());
     m_settings.set(Settings::kTheme, m_theme->currentData().toString());
     QDialog::accept();

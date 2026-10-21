@@ -69,6 +69,7 @@ AnalysisConfig Settings::analysisConfig() const
     c.language = lang.isEmpty() ? QStringLiteral("auto") : lang;
     c.threads = intValue(kThreads, 0, 0, kMaxThreads);
     c.beamSize = intValue(kBeam, AnalysisConfig::kDefaultBeamSize, 0, kMaxBeam);
+    c.suppressNst = boolValue(kSuppressNst, true);
     return c;
 }
 

@@ -358,6 +358,42 @@ private slots:
         w->addFolderAction()->trigger();                                        // chooser cancelled
         QCOMPARE(Library(db).folders().size(), 1);
     }
+    void aFolderCanBeTakenOutFromTheSidebarAfterConfirming()
+    {
+        write(root("rec") + "/a.mp3", bytes("a"));
+        Settings(db).setBool(Settings::kAutoAnalyze, false);
+        start();
+        QVERIFY(w->addFolder(root("rec")));
+        QTRY_COMPARE_WITH_TIMEOUT(rows(), 1, 5000);
+        const qint64 id = Library(db).folders().first().id;
+        QVERIFY(w->sidebarWidget()->findItem(SidebarWidget::Folder, id));
+        bool answer = false;
+        QString asked;
+        w->setRemoveConfirm([&](const QString&, const QString& text) { asked = text; return answer; });
+        QVERIFY(!w->removeFolderAsked(id));                                      // "no": nothing happens
+        QVERIFY(asked.contains(root("rec")) && asked.contains("1 本") && asked.contains("音声ファイルそのものは削除されません"));
+        QCOMPARE(Library(db).folders().size(), 1);
+        answer = true;
+        QVERIFY(w->removeFolderAsked(id));
+        QCOMPARE(Library(db).folders().size(), 0);
+        QCOMPARE(rows(), 0);
+        QVERIFY(QFileInfo::exists(root("rec") + "/a.mp3"));                      // the audio stays
+        QVERIFY(w->statusBar()->currentMessage().contains("外しました"));
+        QVERIFY(!w->removeFolderAsked(id));                                      // already gone
+    }
+    void theRescanActionChecksTheFoldersNow()
+    {
+        write(root("rec") + "/a.mp3", bytes("a"));
+        Settings(db).setBool(Settings::kAutoAnalyze, false);
+        start();
+        QVERIFY(w->addFolder(root("rec")));
+        QTRY_COMPARE_WITH_TIMEOUT(rows(), 1, 5000);
+        write(root("rec") + "/b.mp3", bytes("b"));
+        QVERIFY(w->rescanAction());
+        QCOMPARE(w->rescanAction()->shortcut(), QKeySequence("F5"));
+        w->rescanAction()->trigger();
+        QTRY_COMPARE_WITH_TIMEOUT(rows(), 2, 5000);
+    }
     void theSelectionSurvivesTheRefreshAfterAScan()
     {
         write(root("rec") + "/a.mp3", bytes("a"));

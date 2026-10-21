@@ -38,6 +38,7 @@ int main(int argc, char** argv)
     p.addOption({ "model", "transcribe: ggml whisper model file.", "file" });
     p.addOption({ "lang", "transcribe: language (auto, ja, en, ...). Default auto.", "code", "auto" });
     p.addOption({ "max-seconds", "transcribe: only the first N seconds.", "n" });
+    p.addOption({ "suppress-nst", "transcribe: forbid non-speech tokens like (音声)." });
     p.addOption({ "threads", "transcribe: thread count (default auto).", "n" });
     p.addOption({ "probs", "transcribe: print whisper's no-speech probability of every segment." });
     p.addOption({ "beam", "transcribe: beam search width (default greedy).", "n" });
@@ -142,6 +143,7 @@ int main(int argc, char** argv)
         if (p.isSet("entropy")) o.entropyThold = p.value("entropy").toFloat();
         if (p.isSet("logprob")) o.logprobThold = p.value("logprob").toFloat();
         if (p.isSet("temp-inc")) o.temperatureInc = p.value("temp-inc").toFloat();
+        if (p.isSet("suppress-nst")) o.suppressNst = true;
         if (p.isSet("max-ctx")) o.maxTextCtx = p.value("max-ctx").toInt();
         ake::TranscriptResult r;
         QElapsedTimer t; t.start();

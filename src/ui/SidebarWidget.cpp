@@ -2,6 +2,7 @@
 
 #include <QFileInfo>
 #include <QHeaderView>
+#include <QMenu>
 #include <QPainter>
 #include <QScrollBar>
 
@@ -76,6 +77,19 @@ void SidebarDelegate::paint(QPainter* p, const QStyleOptionViewItem& opt, const 
 }
 
 // ---------------------------------------------------------------- widget
+void SidebarWidget::showFolderMenu(const QPoint& pos)
+{
+    QTreeWidgetItem* it = itemAt(pos);
+    if (!it || it->data(0, KindRole).toInt() != Folder) return;
+    const qint64 id = it->data(0, KeyRole).toLongLong();
+    QMenu menu(this);
+    QAction* manage = menu.addAction(tr("フォルダを管理…"));
+    QAction* remove = menu.addAction(tr("ライブラリから外す…"));
+    QAction* chosen = menu.exec(viewport()->mapToGlobal(pos));
+    if (chosen == manage) emit folderManageRequested(id);
+    else if (chosen == remove) emit folderRemoveRequested(id);
+}
+
 SidebarWidget::SidebarWidget(QWidget* parent)
     : QTreeWidget(parent), m_delegate(new SidebarDelegate(this))
 {
@@ -90,6 +104,8 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     setEditTriggers(QAbstractItemView::NoEditTriggers);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this, [this](const QPoint& pos) { showFolderMenu(pos); });
     connect(this, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem* it) { activate(it); });
     connect(this, &QTreeWidget::itemActivated, this, [this](QTreeWidgetItem* it) { activate(it); }); // Enter key
     setAttribute(Qt::WA_StyledBackground, true);

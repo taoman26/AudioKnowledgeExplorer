@@ -52,6 +52,7 @@ bool AnalysisPipeline::run(const QString& audioPath, const AnalysisConfig& cfg, 
         if (!gate.hasSpeech()) {                       // nothing but noise / silence: an empty transcript, no model needed
             *out = {};
             out->model = QFileInfo(model).completeBaseName();
+            out->settings = QStringLiteral("skipped: no speech detected");
             out->language = cfg.language == "auto" ? QString() : cfg.language;
             report(kStageTranscribe, 1.0);
             return true;
@@ -73,6 +74,7 @@ bool AnalysisPipeline::run(const QString& audioPath, const AnalysisConfig& cfg, 
     opt.language = cfg.language;
     opt.threads = cfg.threads;
     opt.beamSize = cfg.beamSize;
+    if (cfg.suppressNst) opt.suppressNst = true;
     const bool ok = m_transcriber->transcribe(pcm, opt, out, &err, [&](double f) {
         report(kStageTranscribe, base + f * (1.0 - base));
         return !cancel.load();

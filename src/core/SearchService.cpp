@@ -270,6 +270,13 @@ SearchResult SearchService::search(const QString& query, int limit) const
         if (x.score != y.score) return x.score > y.score;
         return x.recordingId > y.recordingId;
     });
+    // homophones of the words typed (障害 -> 症外: the recogniser wrote another word of the same sound) come after the spelling hits
+    if (m_tok.hasReadings()) {
+        const SearchResult sound = searchSimilar(terms, exactIds, 0, true);
+        QSet<qint64> have;
+        for (const SearchHit& h : res.hits) have.insert(h.recordingId);
+        for (const SearchHit& h : sound.hits) if (!have.contains(h.recordingId)) res.hits << h;
+    }
     if (limit > 0 && res.hits.size() > limit) res.hits = res.hits.mid(0, limit);
     return res;
 }
@@ -301,15 +308,14 @@ void SearchService::fillMissingPhonetics() const
     if (!db.transaction()) return;
     QSqlQuery w(db);
     for (const auto& t : todo) {
-        if (t.second.isEmpty()) continue;                          // nothing readable (punctuation): stays empty
         w.prepare("UPDATE segments SET phonetic=? WHERE id=?");
-        w.addBindValue(sqlText(t.second)); w.addBindValue(t.first);
+        w.addBindValue(sqlText(t.second.isEmpty() ? QStringLiteral("-") : t.second)); w.addBindValue(t.first);   // "-": nothing readable (punctuation), not to be tried again
         w.exec();
     }
     db.commit();
 }
 
-SearchResult SearchService::searchSimilar(const QList<Term>& terms, const QList<QSet<qint64>>& exactIds, int limit) const
+SearchResult SearchService::searchSimilar(const QList<Term>& terms, const QList<QSet<qint64>>& exactIds, int limit, bool exactReadingOnly) const
 {
     SearchResult res;
     if (!m_tok.hasReadings()) return res;                         // without readings there is nothing to compare by sound
@@ -318,7 +324,9 @@ SearchResult SearchService::searchSimilar(const QList<Term>& terms, const QList<
     for (int i = 0; i < terms.size(); ++i) {
         TermSound t;
         t.reading = m_tok.phonetic(terms[i].raw);
-        t.allowed = PhoneticMatch::isKanaOnly(t.reading) ? PhoneticMatch::allowedDistance(int(t.reading.size())) : -1;
+        const bool kana = PhoneticMatch::isKanaOnly(t.reading);
+        t.allowed = !kana ? -1 : exactReadingOnly ? (t.reading.size() >= kMinHomophoneKana ? 0 : -1)
+                                                  : PhoneticMatch::allowedDistance(int(t.reading.size()));
         if (t.allowed < 0 && exactIds[i].isEmpty()) return res;   // too short to compare and found nowhere: no candidates
         sounds << t;
     }
@@ -328,14 +336,15 @@ SearchResult SearchService::searchSimilar(const QList<Term>& terms, const QList<
     QHash<qint64, QVector<Best>> best;                            // recording -> best segment per term
     QSqlQuery q(m_db.handle());
     q.prepare("SELECT t.recording_id, s.transcript_id, s.idx, s.start_ms, s.phonetic FROM segments s"
-              " JOIN transcripts t ON t.id=s.transcript_id WHERE t.is_current=1 AND s.phonetic<>''");
+              " JOIN transcripts t ON t.id=s.transcript_id WHERE t.is_current=1 AND s.phonetic NOT IN ('', '-')");
     if (!run(q)) return res;
     while (q.next()) {
         const qint64 rec = q.value(0).toLongLong();
         const QString phon = q.value(4).toString();
         for (int i = 0; i < sounds.size(); ++i) {
             if (sounds[i].allowed < 0) continue;
-            const int d = PhoneticMatch::distance(sounds[i].reading, phon, sounds[i].allowed);
+            const int d = exactReadingOnly ? (phon.contains(sounds[i].reading) ? 0 : 1)   // identical reading somewhere in the segment
+                                           : PhoneticMatch::distance(sounds[i].reading, phon, sounds[i].allowed);
             if (d > sounds[i].allowed) continue;
             QVector<Best>& b = best[rec];
             if (b.isEmpty()) b.resize(int(sounds.size()));

@@ -27,7 +27,8 @@ public:
     QComboBox* qualityCombo() const { return m_quality; }       // data = beam width: 5 accurate, 0 fast
     QComboBox* threadsCombo() const { return m_threads; }       // data = thread count, 0 = automatic
     QCheckBox* autoAnalyzeBox() const { return m_auto; }
-    QComboBox* scanIntervalCombo() const { return m_scan; }     // data = seconds, 0 = never
+    QCheckBox* watchBox() const { return m_watch; }            // keep watching the folders
+    QComboBox* scanIntervalCombo() const { return m_scan; }     // data = seconds (enabled while watching)
     QComboBox* themeCombo() const { return m_theme; }
     QLabel* modelNote() const { return m_modelNote; }
     QPushButton* okButton() const { return m_ok; }
@@ -43,6 +44,7 @@ private:
     QComboBox* m_quality;
     QComboBox* m_threads;
     QCheckBox* m_auto;
+    QCheckBox* m_watch;
     QComboBox* m_scan;
     QComboBox* m_theme;
     QLabel* m_modelNote;

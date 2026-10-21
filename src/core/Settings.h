@@ -17,7 +17,9 @@ public:
     static constexpr const char* kLanguage = "whisper.language";      // auto | ja | en | ...
     static constexpr const char* kThreads = "whisper.threads";        // 0 = automatic
     static constexpr const char* kBeam = "whisper.beam";              // beam width; 0 = fast greedy decoding
+    static constexpr const char* kSuppressNst = "whisper.suppress_nst";   // forbid "(音声)"-like tokens (default on)
     static constexpr const char* kAutoAnalyze = "analysis.auto";      // analyse newly found recordings by itself
+    static constexpr const char* kScanWatch = "scan.watch";           // keep watching the folders (rescan every kScanInterval); off: only at start and on request
     static constexpr const char* kScanInterval = "scan.interval_s";   // rescan folders every n seconds; 0 = never
     static constexpr const char* kTheme = "ui.theme";                 // system | light | dark
     static constexpr const char* kViewMode = "ui.view_mode";          // cards | rows
@@ -42,6 +44,7 @@ public:
     // typed views
     AnalysisConfig analysisConfig() const;
     bool autoAnalyze() const { return boolValue(kAutoAnalyze, true); }
+    bool watchFolders() const { return boolValue(kScanWatch, true) && scanIntervalSeconds() > 0; }   // an older "interval 0" means off
     int scanIntervalSeconds() const { return intValue(kScanInterval, kDefaultScanIntervalS, 0, 24 * 3600); }
     QString theme() const;       // always one of system|light|dark
     QString viewMode() const;    // cards|rows

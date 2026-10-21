@@ -343,6 +343,7 @@ private slots:
         QCOMPARE(g_lastOptions.language, QString("en"));
         QCOMPARE(g_lastOptions.threads, 3);
         QCOMPARE(g_lastOptions.beamSize, AnalysisConfig::kDefaultBeamSize);   // the pipeline passes the beam width on
+        QVERIFY(g_lastOptions.suppressNst && *g_lastOptions.suppressNst);      // and forbids the non-speech tokens
     }
 };
 

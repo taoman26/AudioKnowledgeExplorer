@@ -9,6 +9,7 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QMessageBox>
 #include <QSqlQuery>
 #include <QKeyEvent>
 #include <QMimeData>
@@ -282,6 +283,9 @@ void MainWindow::buildMenus()
         m_pause = menu->addAction(tr("解析を一時停止"));
         m_pause->setCheckable(true);
         m_cancelAll = menu->addAction(tr("解析をすべてキャンセル"));
+        menu->addSeparator();
+        m_rescanAll = menu->addAction(tr("フォルダを今すぐ確認"));
+        m_rescanAll->setShortcut(QKeySequence("F5"));
     }
 }
 
@@ -291,6 +295,7 @@ void MainWindow::buildToolBar()
     m_toolbar = tb;
     tb->setMovable(false);
     tb->addAction(m_addFolder);              // "＋ フォルダ追加" (same action as the 追加 entry of the ファイル menu)
+    tb->addAction(m_folderDialog);           // "フォルダ管理…": remove, rescan, exclude patterns
     m_search = new QLineEdit;
     m_search->setPlaceholderText(tr("録音の内容を検索（タイトル・要約・タグ・全文）   Ctrl+K"));
     m_search->setClearButtonEnabled(true);
@@ -682,6 +687,7 @@ void MainWindow::setScanService(ScanService* scan)
     connect(scan, &ScanService::started, this, [this](qint64) { m_scanLabel->setText(tr("◐ フォルダを走査中…")); m_scanLabel->show(); });
     connect(scan, &ScanService::finished, this, [this](qint64 id, const ScanResult& r) { onScanFinished(id, r); });
     connect(scan, &ScanService::idle, this, [this] { m_scanLabel->hide(); });
+    connect(m_rescanAll, &QAction::triggered, scan, &ScanService::scanAll);
 }
 
 bool MainWindow::addFolder(const QString& path)
@@ -722,9 +728,29 @@ FolderDialog* MainWindow::createFolderDialog()
     return dlg;
 }
 
-void MainWindow::showFolderDialog()
+void MainWindow::showFolderDialog(qint64 selectFolderId)
 {
-    if (FolderDialog* dlg = createFolderDialog()) dlg->exec();
+    if (FolderDialog* dlg = createFolderDialog()) {
+        if (selectFolderId) dlg->selectFolder(selectFolderId);
+        dlg->exec();
+    }
+}
+
+bool MainWindow::removeFolderAsked(qint64 folderId)
+{
+    if (!m_db) return false;
+    Library lib(*m_db);
+    QString path;
+    for (const FolderInfo& f : lib.folders()) if (f.id == folderId) path = f.path;
+    if (path.isEmpty()) return false;
+    const QString text = tr("「%1」をライブラリから外します。\nこのフォルダの録音 %2 本の文字起こし・要約・タグ・メモも削除されます。\n（音声ファイルそのものは削除されません。）")
+                             .arg(path).arg(lib.recordingCountInFolder(folderId));
+    const bool yes = m_removeConfirm ? m_removeConfirm(tr("フォルダを外す"), text)
+                                     : QMessageBox::question(this, tr("フォルダを外す"), text) == QMessageBox::Yes;
+    if (!yes || !lib.removeFolder(folderId)) return false;
+    refreshCards();
+    statusBar()->showMessage(tr("フォルダを外しました: %1").arg(path), 5000);
+    return true;
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* e)
@@ -928,6 +954,9 @@ void MainWindow::buildPanes()
     m_sidebar = m_sidebarWidget;
     connect(m_sidebarWidget, &SidebarWidget::filterChanged, this, [this] { onFilterChanged(); });
     connect(m_sidebarWidget, &SidebarWidget::allTagsRequested, this, [this] { pickTags(); });
+    // both end in a modal dialog: not from inside the menu's own event loop
+    connect(m_sidebarWidget, &SidebarWidget::folderManageRequested, this, [this](qint64 id) { QTimer::singleShot(0, this, [this, id] { showFolderDialog(id); }); });
+    connect(m_sidebarWidget, &SidebarWidget::folderRemoveRequested, this, [this](qint64 id) { QTimer::singleShot(0, this, [this, id] { removeFolderAsked(id); }); });
     m_cardArea = new QWidget;
     m_cardArea->setObjectName("cardArea");
     m_cardArea->setAttribute(Qt::WA_StyledBackground, true);
