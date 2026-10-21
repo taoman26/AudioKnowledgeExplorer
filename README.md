@@ -92,19 +92,25 @@ cmake --build build
 すでに n-gram で解析した録音のタグ・キーワードは、再解析すると MeCab の結果になります。
 
 ## モデルの用意
-文字起こしには whisper の ggml モデルが必要です(同梱していません)。
-[ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp/tree/main) から取得して、次のどちらかに置きます。
+文字起こしには whisper の ggml モデルが必要です(同梱していません)。モデルは「重さ」と「日本語の精度」のトレードオフで選びます。
 
-- 既定のモデル: `~/.local/share/AudioKnowledgeExplorer/models/ggml-small.bin`(Haiku は `~/config/settings/AudioKnowledgeExplorer/models/`)
-- または 設定ダイアログ(Ctrl+,)でモデルファイルを指定
+| モデル | ファイル | 速度(8コア CPU・20分の録音) | 精度 |
+|---|---|---|---|
+| `ggml-small.bin`(標準) | 約 0.5 GB | 約 7 分(beam 5) | 実用になるが、誤変換が多く、会話では存在しない話者名を付けることもある |
+| `ggml-large-v3-turbo.bin`(**お勧め**) | 約 1.6 GB | ほぼ録音と同じ時間(約1.1倍)、メモリ約 2 GB | small より明らかに良い |
 
-目安(日本語の実録音で測定、CPU のみ):
+- **メモリと時間に余裕があれば turbo を使ってください。** 実際の日本語の録音で、small より誤りが少ないことを確認しています。
+- 余裕がない機械(Haiku など)では small が現実的です。Haiku(8スレッドの VM)では small で20分の録音に約12分かかり、turbo は測っていません。
+- `tiny` / `base` は軽いですが、日本語の精度は低いのでお勧めしません。量子化版(`-q5_0` など)は、小さく速い代わりに少し精度が下がります。
+- アプリの設定ダイアログ(Ctrl+,)でモデルを選ぶと、そのモデルの一言説明が出ます。モデルが無いときは、画面にも入手先が出ます。
 
-| モデル | 速度 | 精度 |
-|---|---|---|
-| small(既定) | 20分の録音で約7分(beam 5) | 実用になるが誤変換が多い |
-| large-v3-turbo | ほぼ実時間(約1.1倍)、メモリ約2GB | small より明らかに良い |
+取得先: [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp/tree/main)(例: `ggml-large-v3-turbo.bin`)。次のどちらかで使います。
 
+- 既定の場所に置く: `~/.local/share/AudioKnowledgeExplorer/models/`(Haiku は `~/config/settings/AudioKnowledgeExplorer/models/`)。**既定のモデルは `ggml-small.bin`** なので、turbo を使うときは、設定ダイアログで選びます。
+- または、設定ダイアログの「参照…」でモデルファイルを直接指定する。
+
+### 言語
+**文字起こしの言語は、既定で日本語です。** 自動判定は、録音の冒頭の約30秒で決めるため、冒頭が無音や雑音だと外れることがあり(日本語の録音を「ノルウェー語」と判定した例があります)、その場合は日本語がラテン文字の文章になってしまいます。英語など他の言語の録音を扱うときは、設定ダイアログの「言語」で「自動検出」か、その言語を選んでください。
 
 ## 使い方
 ```sh

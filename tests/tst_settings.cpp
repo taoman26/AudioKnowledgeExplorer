@@ -25,7 +25,7 @@ private slots:
         QVERIFY(s.autoAnalyze());
         QCOMPARE(s.scanIntervalSeconds(), Settings::kDefaultScanIntervalS);
         const AnalysisConfig c = s.analysisConfig();
-        QCOMPARE(c.language, QString("auto"));
+        QCOMPARE(c.language, QString("ja"));                            // not "auto": detection took a Japanese interview for Norwegian
         QCOMPARE(c.threads, 0);
         QCOMPARE(c.beamSize, 5);                                        // accuracy first by default
         QVERIFY(c.suppressNst);                                         // no "(音声)" instead of words
@@ -111,7 +111,18 @@ private slots:
         QCOMPARE(c.language, QString("ja"));
         QCOMPARE(c.threads, 4);
         s.set(Settings::kLanguage, "  ");
-        QCOMPARE(s.analysisConfig().language, QString("auto"));
+        QCOMPARE(s.analysisConfig().language, QString("ja"));
+    }
+    void modelsAreDescribedByTheirFileName()
+    {
+        QVERIFY(Settings::describeModel("ggml-small").contains("誤変換"));
+        QVERIFY(Settings::describeModel("ggml-large-v3-turbo").contains("お勧め"));
+        QVERIFY(Settings::describeModel("ggml-large-v3").contains("最も高精度"));
+        QVERIFY(Settings::describeModel("ggml-tiny.en").contains("最小"));
+        const QString q = Settings::describeModel("ggml-large-v3-turbo-q5_0");   // a quantised turbo: both parts
+        QVERIFY(q.contains("お勧め") && q.contains("量子化"));
+        QVERIFY(Settings::describeModel("my-own-finetune").isEmpty());          // an unknown model: nothing invented
+        QVERIFY(Settings::describeModel(QString()).isEmpty());
     }
     void settingsSurviveReopeningTheDatabase()
     {

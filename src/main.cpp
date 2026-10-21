@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     p.addOption(sizeOpt);
     QCommandLineOption modelOpt("model", "whisper ggml model file (default: <app data>/models/ggml-small.bin).", "file");
     p.addOption(modelOpt);
-    QCommandLineOption langOpt("lang", "Transcription language: auto, ja, en, ... (default auto).", "code", "auto");
+    QCommandLineOption langOpt("lang", "Transcription language: auto, ja, en, ... (debug: overrides the setting for this run).", "code");
     p.addOption(langOpt);
     QCommandLineOption analyzeAll("analyze-all", "Debug: queue every not yet analysed recording at start.");
     p.addOption(analyzeAll);
