@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=AudioKnowledgeExplorer
+Name[ja]=AudioKnowledgeExplorer
+Comment=Turn recordings into searchable knowledge cards (local only)
+Comment[ja]=録音を検索できるナレッジカードにする(すべてローカルで動作)
+Exec=AudioKnowledgeExplorer
+Icon=audioknowledgeexplorer
+Categories=AudioVideo;Audio;Utility;
+Terminal=false

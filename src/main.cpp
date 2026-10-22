@@ -2,6 +2,7 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -31,6 +32,16 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName("AudioKnowledgeExplorer");
+#ifdef AKE_PORTABLE
+    // The speech engine is built for AVX2/FMA/F16C: on an older CPU it would die with "illegal instruction" in the middle of
+    // an analysis. Say so at once instead.
+    if (!__builtin_cpu_supports("avx2") || !__builtin_cpu_supports("fma") || !__builtin_cpu_supports("f16c")) {
+        QMessageBox::critical(nullptr, QObject::tr("AudioKnowledgeExplorer"),
+                              QObject::tr("この CPU は AVX2 / FMA / F16C に対応していないため、このビルドは動作しません。\n"
+                                          "(2013 年以降の x86-64 CPU が必要です。ソースから自分のマシン向けにビルドすれば動かせます。)"));
+        return 1;
+    }
+#endif
 
     QCommandLineParser p;
     p.addHelpOption();

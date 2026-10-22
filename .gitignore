@@ -10,3 +10,7 @@ build_*/
 mockups/
 CLAUDE.md
 design.md
+
+# AppImage build output and scratch
+dist/
+.appimage-work/

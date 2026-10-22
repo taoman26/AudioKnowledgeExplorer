@@ -23,8 +23,18 @@ pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavformat libavcodec libswre
 # whisper.cpp (built from source, CPU only, static). Point AKE_WHISPER_DIR at a checkout, or leave empty to fetch.
 set(AKE_WHISPER_DIR "" CACHE PATH "whisper.cpp source directory (empty = fetch from GitHub)")
 set(AKE_WHISPER_TAG "v1.7.6" CACHE STRING "whisper.cpp tag to fetch when AKE_WHISPER_DIR is empty")
+# A binary that runs on other machines (the AppImage): no -march=native. ggml is built for AVX2 + FMA + F16C (x86-64 from about
+# 2013 on; main.cpp checks for them at start) instead of the build machine's own CPU.
+option(AKE_PORTABLE "Build for other machines than this one (AppImage): no -march=native, AVX2/FMA/F16C" OFF)
 set(_ake_shared ${BUILD_SHARED_LIBS})
 set(BUILD_SHARED_LIBS OFF)
+if(AKE_PORTABLE)
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    set(GGML_AVX2 ON CACHE BOOL "" FORCE)
+    set(GGML_FMA ON CACHE BOOL "" FORCE)
+    set(GGML_F16C ON CACHE BOOL "" FORCE)
+    set(GGML_AVX512 OFF CACHE BOOL "" FORCE)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
     # ggml's OpenMP threads wait on each other so badly on Haiku that more threads are slower (8 threads: 4x slower than 1);
     # its own thread pool is 5x faster there (design.md measurements)
@@ -116,6 +126,9 @@ target_link_libraries(ake_ui PUBLIC ake_core Qt6::Widgets)
 
 add_executable(AudioKnowledgeExplorer src/main.cpp)
 target_link_libraries(AudioKnowledgeExplorer PRIVATE ake_ui ake_audio)
+if(AKE_PORTABLE)
+    target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_PORTABLE=1)
+endif()
 
 add_executable(ake_cli src/cli.cpp)
 target_link_libraries(ake_cli PRIVATE ake_core ake_audio)

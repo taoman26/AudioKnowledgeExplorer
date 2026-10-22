@@ -28,13 +28,13 @@
 ## ビルド
 
 必要なもの: C++17 コンパイラ、CMake ≥ 3.16、Ninja、Qt 6(6.2 以上: Widgets / Sql / Multimedia / Concurrent / Test)、
-FFmpeg の開発ライブラリ(libavformat / libavcodec / libswresample / libavutil)、SQLite(FTS5 つき)。
+FFmpeg の開発ライブラリ(libavformat / libavcodec / libswresample / libavutil。4.4 以降に対応)、SQLite(FTS5 つき。Qt の SQLite ドライバー)。
 任意: MeCab と UTF-8 の JUMAN 辞書(無いと n-gram の簡易トークナイザになり、読みの近い語の検索は使えません)。
 
 ```sh
 # Ubuntu の例
-sudo apt install build-essential cmake ninja-build qt6-base-dev qt6-multimedia-dev \
-    libavformat-dev libavcodec-dev libswresample-dev libavutil-dev libmecab-dev
+sudo apt install build-essential cmake ninja-build qt6-base-dev qt6-multimedia-dev libqt6sql6-sqlite \
+    libavformat-dev libavcodec-dev libswresample-dev libavutil-dev libmecab-dev mecab-jumandic-utf8
 
 cmake -S . -B build -G Ninja          # whisper.cpp は GitHub から取得します
 cmake --build build
@@ -42,9 +42,24 @@ ctest --test-dir build --output-on-failure
 ```
 
 手元の whisper.cpp を使うなら `-DAKE_WHISPER_DIR=<checkout>` を付けます。
-`GGML_NATIVE` が有効なので、**ビルドしたバイナリを他のマシンに配ることはできません**(ソースからのビルド前提です)。
+`GGML_NATIVE` が有効なので、**この手順でビルドしたバイナリを他のマシンに配ることはできません**(自分のマシン向けの最適化が入ります)。配るためのビルドは、`-DAKE_PORTABLE=ON` と、下の AppImage です。
 Haiku でもビルドして動作を確認しています(`pkgman install cmake ninja qt6_base_devel qt6_multimedia_devel sqlite_devel ffmpeg6_devel`)。
 Haiku には MeCab のパッケージが無いので、そのままでは n-gram 版になり、読みの近い語の検索は使えません。使うには、次のとおり MeCab と辞書を自分でビルドします。
+
+### AppImage(Linux): ダブルクリックだけで動かす
+Qt、FFmpeg、MeCab と辞書、GStreamer(再生)、Qt6 の fcitx5 用の入力メソッドのプラグインを、1 つのファイルにまとめます。インストールは不要で、ファイルに実行権限を付けてダブルクリック(または実行)するだけです。
+
+```sh
+packaging/appimage/build-appimage.sh      # Docker が必要。dist/AudioKnowledgeExplorer-<version>-x86_64.AppImage ができます
+chmod +x dist/AudioKnowledgeExplorer-*.AppImage && dist/AudioKnowledgeExplorer-*.AppImage
+```
+
+- 動作条件: x86-64 の Linux、**glibc 2.35 以上(Ubuntu 22.04 以降が目安)**、**AVX2 / FMA / F16C 対応の CPU(2013 年以降)**。対応していない CPU では、起動時にそう表示して終了します。AppImage の実行には、一般に FUSE 2(Ubuntu では `libfuse2`)が必要です。無い場合は、`--appimage-extract-and-run` を付けて実行してください。
+- X11 / OpenGL / フォント(fontconfig、freetype、harfbuzz)/ ALSA などの、デスクトップなら入っている基本のライブラリは、同梱せずにホストのものを使います。
+- **whisper のモデルは同梱していません**(約 0.5〜1.6 GB)。初回起動時に、置き場所と入手先が画面に出ます(上の「モデルの用意」)。
+- 日本語入力(fcitx5)用のプラグインが入っているので、Ubuntu 22.04 の「検索ボックスに日本語が入力できない」問題(後述)は、AppImage では起こりません。`QT_IM_MODULE=fcitx` などの設定は、従来どおり必要です。
+- ビルドには Docker が必要で、Ubuntu 22.04 の中で行います(`Dockerfile` と `inner-build.sh` は `packaging/appimage/` にあります)。
+- **ライセンスの注意**: Ubuntu の FFmpeg は、GPL の部品を含むビルドです(Debian のパッケージのバイナリは GPL v2+ と明記されています)。GStreamer の `plugins-ugly` なども同梱します。そのため、**この AppImage は、MIT のアプリ本体とは別に、GPL の部品を含む配布物**です。配布するときは、同梱物のライセンス(`usr/share/doc/` にまとめています)と、ソースの入手先を示してください。
 
 ### Haiku で MeCab を使う(ソースからビルド)
 MeCab 0.996 と JUMAN 辞書(UTF-8)を、ユーザー領域の `~/config/non-packaged` に入れます。Debian の配布元の tarball を使い、取得後に sha256 を確かめます。
@@ -123,6 +138,7 @@ build/AudioKnowledgeExplorer
 ダミー音声は `tools/make_fixtures.sh <outdir>` で作れます。
 
 ### Ubuntu 22.04 + fcitx5 で、検索ボックスに日本語が入力できないとき
+(AppImage には、このプラグインが入っています。ソースからビルドした場合の話です。)
 Ubuntu 22.04 には、**Qt6 用の fcitx5 のプラグインがありません**(`fcitx5-frontend-qt5` は Qt5 用で、Qt6 のアプリには使えません)。`QT_IM_MODULE=fcitx` を設定していても、Qt6 のアプリ(このアプリを含む)は fcitx5 を見つけられず、日本語を入力できません。Qt の `platforminputcontexts` に `fcitx5` が無いか、確認してください(`ls /usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/`)。
 
 そのときは、`fcitx5-qt` から、Qt6 用のプラグインだけをビルドして入れます。Ubuntu 22.04 の fcitx5 は 5.0.14 なので、同じ版のタグを使います。
@@ -162,5 +178,5 @@ OS 依存の部分(フォルダ監視、再生)はインターフェースの裏
 
 ## ライセンス
 [MIT](LICENSE)。依存ライブラリはそれぞれのライセンスに従います:
-Qt (LGPL)、FFmpeg (LGPL/GPL、ビルド構成による)、MeCab (GPL/LGPL/BSD)、whisper.cpp (MIT)、SQLite (パブリックドメイン)。
+Qt (LGPL)、FFmpeg (LGPL/GPL、ビルド構成による。Ubuntu のパッケージは GPL を含む)、MeCab (GPL/LGPL/BSD)、JUMAN 辞書 (BSD 系)、whisper.cpp (MIT)、SQLite (パブリックドメイン)、fcitx5-qt (AppImage に同梱。LGPL 2.1 以降 / BSD)。
 whisper のモデルファイルは別のライセンスです(配布元を確認してください)。

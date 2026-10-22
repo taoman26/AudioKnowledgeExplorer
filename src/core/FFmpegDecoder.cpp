@@ -8,12 +8,22 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/channel_layout.h>
+#include <libavutil/version.h>
 #include <libavutil/dict.h>
 #include <libavutil/error.h>
 #include <libavutil/log.h>
 #include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 }
+
+// FFmpeg 5.1 (libavutil 57.24) replaced the channel-layout integers by AVChannelLayout; FFmpeg 5.0 (libavformat 59) made the
+// decoder returned by av_find_best_stream const. Ubuntu 22.04 ships 4.4, Haiku 6, current distributions 6 / 7: both are supported.
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 24, 100)
+#define AKE_FF_NEW_CH_LAYOUT 1
+#endif
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(59, 0, 0)
+#define AKE_FF_CONST_CODEC 1
+#endif
 
 namespace ake {
 
@@ -58,7 +68,13 @@ bool openInput(const QString& path, Fmt* fmt, int* streamIdx, const AVCodec** co
     r = avformat_find_stream_info(raw, nullptr);
     if (r < 0)
         return fail(error, QStringLiteral("cannot read stream info: %1").arg(avErr(r)));
+#ifdef AKE_FF_CONST_CODEC
     const int idx = av_find_best_stream(raw, AVMEDIA_TYPE_AUDIO, -1, -1, codec, 0);
+#else
+    AVCodec* found = nullptr;
+    const int idx = av_find_best_stream(raw, AVMEDIA_TYPE_AUDIO, -1, -1, &found, 0);
+    *codec = found;
+#endif
     if (idx < 0)
         return fail(error, QStringLiteral("no audio stream"));
     *streamIdx = idx;
@@ -70,7 +86,11 @@ void fillInfo(const AVFormatContext* fmt, const AVStream* st, const AVCodec* cod
     info->durationMs = fmt->duration > 0 ? fmt->duration * 1000 / AV_TIME_BASE
                        : st->duration > 0 ? av_rescale_q(st->duration, st->time_base, AVRational{ 1, 1000 }) : 0;
     info->sampleRate = st->codecpar->sample_rate;
+#ifdef AKE_FF_NEW_CH_LAYOUT
     info->channels = st->codecpar->ch_layout.nb_channels;
+#else
+    info->channels = st->codecpar->channels;
+#endif
     info->codec = QString::fromUtf8(codec->name);
     auto tag = [&](const char* key) -> QString {
         const AVDictionaryEntry* e = av_dict_get(fmt->metadata, key, nullptr, 0);
@@ -122,6 +142,7 @@ bool FFmpegDecoder::decode(const QString& path, std::vector<float>* pcm, AudioIn
     r = avcodec_open2(ctx.get(), codec, nullptr);
     if (r < 0) return fail(error, QStringLiteral("cannot open codec %1: %2").arg(local.codec, avErr(r)));
 
+#ifdef AKE_FF_NEW_CH_LAYOUT
     // Some files (raw wav, ...) report an unspecified layout: fall back to the default one for the channel count.
     AVChannelLayout inLayout = {};
     if (ctx->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC || !av_channel_layout_check(&ctx->ch_layout))
@@ -135,17 +156,25 @@ bool FFmpegDecoder::decode(const QString& path, std::vector<float>* pcm, AudioIn
     r = swr_alloc_set_opts2(&rawSwr, &outLayout, AV_SAMPLE_FMT_FLT, kDecodeSampleRate, &inLayout, ctx->sample_fmt,
                             ctx->sample_rate, 0, nullptr);
     Swr swr(rawSwr);
+    auto releaseLayouts = [&] { av_channel_layout_uninit(&inLayout); av_channel_layout_uninit(&outLayout); };
+#else
+    int64_t inLayout = ctx->channel_layout ? int64_t(ctx->channel_layout)
+                                           : av_get_default_channel_layout(ctx->channels > 0 ? ctx->channels : 1);
+    SwrContext* rawSwr = swr_alloc_set_opts(nullptr, AV_CH_LAYOUT_MONO, AV_SAMPLE_FMT_FLT, kDecodeSampleRate, inLayout,
+                                            ctx->sample_fmt, ctx->sample_rate, 0, nullptr);
+    r = rawSwr ? 0 : AVERROR(ENOMEM);
+    Swr swr(rawSwr);
+    auto releaseLayouts = [] {};
+#endif
     // Normalize the downmix matrix: FFmpeg's default stereo->mono sums L and R at 0.707 each, which is louder than
     // either channel (and clips full-scale input). With maxval=1 the output can never exceed full scale.
     if (r >= 0 && swr)
         av_opt_set_double(swr.get(), "rematrix_maxval", 1.0, 0);
     if (r < 0 || !swr || (r = swr_init(swr.get())) < 0) {
-        av_channel_layout_uninit(&inLayout);
-        av_channel_layout_uninit(&outLayout);
+        releaseLayouts();
         return fail(error, QStringLiteral("cannot set up resampler: %1").arg(avErr(r)));
     }
-    av_channel_layout_uninit(&inLayout);
-    av_channel_layout_uninit(&outLayout);
+    releaseLayouts();
 
     Packet pkt(av_packet_alloc());
     Frame frame(av_frame_alloc());
