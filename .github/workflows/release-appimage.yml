@@ -1,11 +1,17 @@
-# Builds the AppImage when a version tag is pushed (v0.1.0, v0.2.0-alpha.1, ...) and attaches it to the GitHub Release of that tag.
-# The AppImage is a build product, not source: it is not committed to the repository.
+# Builds the AppImage. The AppImage is a build product, not source: it is not committed to the repository.
+#
+# Now: manual runs only (Actions > Release AppImage > Run workflow, or `gh workflow run release-appimage.yml`). A manual run
+# builds it and keeps it as a workflow artifact; it creates no release. This is how the workflow itself gets tested.
+# The first release (v0.1.0-alpha.1) was published by hand from an AppImage that had been checked.
+#
+# From the next release on: enable the tag trigger below. Pushing a version tag (v0.2.0, v0.2.0-alpha.1, ...) then builds the
+# AppImage and attaches it, with SHA256SUMS, to the release of that tag (a "-" in the tag makes it a pre-release).
 name: Release AppImage
 
 on:
-  push:
-    tags: ['v*']
-  workflow_dispatch:        # a manual run builds the AppImage and keeps it as a workflow artifact only (no release)
+  # push:
+  #   tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write           # create the release and upload the files
