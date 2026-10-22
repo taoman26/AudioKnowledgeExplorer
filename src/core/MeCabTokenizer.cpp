@@ -1,5 +1,7 @@
 #include "core/MeCabTokenizer.h"
 
+#include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QSet>
 #include <QStringList>
@@ -19,6 +21,12 @@ std::unique_ptr<MeCabTokenizer> MeCabTokenizer::create(const QString& dicDir, QS
 {
     QString dir = dicDir.isEmpty() ? qEnvironmentVariable("AKE_MECAB_DICDIR") : dicDir;
     QByteArray args = "mecab";
+    if (dir.isEmpty() && QCoreApplication::instance()) {
+        // the dictionary packed next to the executable (AppImage: <app>/usr/share/AudioKnowledgeExplorer/mecab/jumandic); it
+        // comes with its own empty rc file so that no /etc/mecabrc is needed either
+        const QString packed = QDir(QCoreApplication::applicationDirPath()).filePath("../share/AudioKnowledgeExplorer/mecab/jumandic");
+        if (QFile::exists(packed + "/sys.dic")) { dir = QDir::cleanPath(packed); args += " -r /dev/null"; }
+    }
     if (!dir.isEmpty()) args += " -d " + QFile::encodeName(dir);
     std::unique_ptr<MeCabTokenizer> t(new MeCabTokenizer);
     t->m_impl = std::make_unique<Impl>();

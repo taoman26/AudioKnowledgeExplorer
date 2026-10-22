@@ -1,0 +1,49 @@
+# Builds the AppImage. The AppImage is a build product, not source: it is not committed to the repository.
+#
+# Now: manual runs only (Actions > Release AppImage > Run workflow, or `gh workflow run release-appimage.yml`). A manual run
+# builds it and keeps it as a workflow artifact; it creates no release. This is how the workflow itself gets tested.
+# The first release (v0.1.0-alpha.1) was published by hand from an AppImage that had been checked.
+#
+# From the next release on: enable the tag trigger below. Pushing a version tag (v0.2.0, v0.2.0-alpha.1, ...) then builds the
+# AppImage and attaches it, with SHA256SUMS, to the release of that tag (a "-" in the tag makes it a pre-release).
+name: Release AppImage
+
+on:
+  # push:
+  #   tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write           # create the release and upload the files
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the AppImage (Docker, Ubuntu 22.04)
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then export AKE_VERSION="${GITHUB_REF_NAME#v}"; fi
+          packaging/appimage/build-appimage.sh
+
+      - name: Checksums
+        run: cd dist && sha256sum *.AppImage | tee SHA256SUMS
+
+      - name: Keep the build (manual runs)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/*
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.AppImage
+            dist/SHA256SUMS
+          body_path: .github/release-body.md
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}      # v0.1.0-alpha.1 is a pre-release, v0.1.0 is not
