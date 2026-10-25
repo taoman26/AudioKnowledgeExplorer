@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QSet>
 #include <QStringList>
 #include <mecab.h>
@@ -16,18 +17,41 @@ namespace ake {
 namespace {
 #ifdef Q_OS_WIN
 // MeCab opens its files with the ANSI API and splits its argument string at blanks: a folder with Japanese characters or a
-// space in its name ("C:\Users\山田 太郎\Downloads") cannot be given to it as it is. The 8.3 short name of the path has
-// neither. Returns "" when the path cannot be made plain (short names switched off on that drive).
+// space in its name ("C:\\Users\\山田 太郎\\Downloads") cannot be given to it as it is. Two ways out: the 8.3 short name of the
+// path (neither has blanks nor Japanese characters; but many drives have short names switched off), or a copy of the dictionary
+// in %ProgramData%\\AudioKnowledgeExplorer (plain ASCII, the same for every user). Returns "" when neither works.
+bool plainPath(const QString& p)
+{
+    for (QChar c : p) if (c.unicode() >= 0x80 || c.isSpace()) return false;
+    return true;
+}
+
+QString copyOfDictionary(const QString& dir)
+{
+    const QString base = qEnvironmentVariable("ProgramData");
+    const QString dst = base + "/AudioKnowledgeExplorer/mecab/jumandic";
+    if (base.isEmpty() || !plainPath(dst) || !QDir().mkpath(dst)) return QString();
+    const QFileInfoList files = QDir(dir).entryInfoList(QDir::Files);
+    for (const QFileInfo& f : files) {                       // a file that is already there with the same size is kept
+        const QString to = dst + "/" + f.fileName();
+        if (QFileInfo(to).size() == f.size() && f.size() > 0) continue;
+        QFile::remove(to);
+        if (!QFile::copy(f.absoluteFilePath(), to) && f.size() > 0) return QString();
+    }
+    return QFileInfo(dst + "/sys.dic").exists() ? dst : QString();
+}
+
 QString mecabSafePath(const QString& path)
 {
-    auto plain = [](const QString& p) { for (QChar c : p) if (c.unicode() >= 0x80 || c.isSpace()) return false; return true; };
-    if (plain(path)) return path;
+    if (plainPath(path)) return path;
     const std::wstring w = QDir::toNativeSeparators(path).toStdWString();
     wchar_t buf[2 * MAX_PATH];
     const DWORD n = GetShortPathNameW(w.c_str(), buf, DWORD(sizeof(buf) / sizeof(buf[0])));
-    if (n == 0 || n >= sizeof(buf) / sizeof(buf[0])) return QString();
-    const QString shortPath = QDir::fromNativeSeparators(QString::fromWCharArray(buf, int(n)));
-    return plain(shortPath) ? shortPath : QString();
+    if (n > 0 && n < sizeof(buf) / sizeof(buf[0])) {
+        const QString shortPath = QDir::fromNativeSeparators(QString::fromWCharArray(buf, int(n)));
+        if (plainPath(shortPath)) return shortPath;
+    }
+    return copyOfDictionary(path);
 }
 #else
 QString mecabSafePath(const QString& path) { return path; }
@@ -59,7 +83,7 @@ std::unique_ptr<MeCabTokenizer> MeCabTokenizer::create(const QString& dicDir, QS
     if (!dir.isEmpty()) {
         const QString safe = mecabSafePath(dir);
         if (safe.isEmpty()) {
-            if (error) *error = QStringLiteral("the dictionary folder cannot be given to MeCab (Japanese characters or blanks in its path, and no short name): %1").arg(dir);
+            if (error) *error = QStringLiteral("the dictionary folder cannot be given to MeCab (Japanese characters or blanks in its path, and no short name or copy): %1").arg(dir);
             return nullptr;
         }
         dir = safe;
