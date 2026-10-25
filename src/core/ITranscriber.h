@@ -1,6 +1,7 @@
 #pragma once
 #include <QList>
 #include <QString>
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -25,6 +26,9 @@ struct TranscribeOptions {
     std::optional<float> temperatureInc;    // size of each retry step (default 0.2; 0 turns retrying off)
     std::optional<bool> suppressNst;        // forbid non-speech tokens such as "(音声)" / "[音楽]" (whisper default: false)
     std::optional<int> maxTextCtx;          // tokens of previous text given to the decoder (default 16384)
+    // Polled by the engine all the time (cheap, any thread) so that a cancel or the app quitting takes effect within a moment;
+    // the progress callback only fires between segments, which is seconds apart (a minute or more with the big model).
+    std::function<bool()> cancelRequested;
 };
 
 struct TranscriptResult {

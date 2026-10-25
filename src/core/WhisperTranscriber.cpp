@@ -19,6 +19,7 @@ void quietLog(enum ggml_log_level level, const char* text, void*)
 
 struct RunState {
     const IDecoder::Progress* progress = nullptr;
+    const std::function<bool()>* cancelRequested = nullptr;
     std::atomic<bool> cancelled{ false };
 };
 
@@ -97,7 +98,12 @@ bool WhisperTranscriber::transcribe(const std::vector<float>& pcm, const Transcr
         if (s->progress && *s->progress && !(*s->progress)(pct / 100.0)) s->cancelled = true;
     };
     p.abort_callback_user_data = &state;
-    p.abort_callback = [](void* user) { return static_cast<RunState*>(user)->cancelled.load(); };
+    if (options.cancelRequested) state.cancelRequested = &options.cancelRequested;
+    p.abort_callback = [](void* user) {
+        auto* s = static_cast<RunState*>(user);
+        if (!s->cancelled && s->cancelRequested && (*s->cancelRequested)()) s->cancelled = true;
+        return s->cancelled.load();
+    };
 
     const int rc = whisper_full(m_ctx, p, pcm.data(), int(pcm.size()));
     if (state.cancelled) return fail("cancelled");
