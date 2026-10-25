@@ -45,13 +45,20 @@ jobs:
         continue-on-error: true      # first runs: find out what the Unix-minded tests still assume; remove when green
         run: ctest --test-dir build --output-on-failure --timeout 300
 
-      - name: Failed tests, verbosely
+      - name: Where does the app stop? (temporary)
         if: always()
         continue-on-error: true
         run: |
-          cd build/tests
-          QT_QPA_PLATFORM=offscreen timeout 120 ./tst_transcript_ui.exe -v2 > ../../tui.log 2>&1 || echo "exit code: $?"
-          tail -60 ../../tui.log
+          cd build
+          export QT_QPA_PLATFORM=offscreen
+          ./ake_cli.exe --db /tmp/d.db seed-demo
+          try() { echo "--- $*"; timeout 25 ./AudioKnowledgeExplorer.exe "$@" > /tmp/o.log 2>&1; echo "exit=$?"; head -c 600 /tmp/o.log; echo; }
+          try --help
+          try --db /tmp/d.db --grab /tmp/a.png
+          try --db :memory: --grab /tmp/b.png
+          try --db /tmp/new.db --grab /tmp/c.png
+          QT_QPA_PLATFORM=windows try --db /tmp/e.db --grab /tmp/e.png
+          echo "--- tst_transcript_ui"; cd tests; timeout 120 ./tst_transcript_ui.exe -v2 > /tmp/t.log 2>&1 || echo "exit=$?"; tail -30 /tmp/t.log
 
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
