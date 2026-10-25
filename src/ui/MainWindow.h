@@ -38,6 +38,7 @@ class MiniPlayer;
 class SearchService;
 class ITokenizer;
 class JobScheduler;
+class ModelDownloader;
 
 // Three panes: sidebar | card area | detail pane (design.md section 4).
 class MainWindow : public QMainWindow {
@@ -61,6 +62,9 @@ public:
     // applied at once; settingsChanged() lets the owner of the folder watcher pick up the new interval.
     SettingsDialog* createSettingsDialog();
     void showSettingsDialog();
+    // Download the configured model by itself when it is missing and one of the two we know (main.cpp turns this on; tests don't)
+    void setAutoDownloadModel(bool on) { m_autoDownload = on; ensureModel(); }
+    ModelDownloader* modelDownloader() const { return m_downloader; }
     void applySettings();                                     // push the stored values into scheduler / theme
     QAction* settingsAction() const { return m_settingsAction; }
 
@@ -154,6 +158,7 @@ private:
     void updateQueueStatus();
     bool modelMissing() const;                                // the model the scheduler would load is not on disk
     void updateModelBanner();
+    void ensureModel();                                       // start the download when the model is missing (and auto-download is on)
     void onSearchTextChanged(const QString& text);
     void showSuggestions();
     void hideSuggestions();
@@ -205,6 +210,11 @@ private:
     FilterChipBar* m_chips = nullptr;
     QWidget* m_modelBanner = nullptr;                          // shown while the whisper model file is missing
     QLabel* m_modelBannerText = nullptr;
+    QPushButton* m_bannerSettings = nullptr;
+    QPushButton* m_bannerCancel = nullptr;
+    ModelDownloader* m_downloader = nullptr;
+    bool m_autoDownload = false;
+    qint64 m_dlReceived = 0, m_dlTotal = 0;
     QTimer* m_facetTimer = nullptr;
     EmptyKind m_emptyKind = EmptyKind::None;
     void updateEmptyState();

@@ -14,6 +14,7 @@
 #include "core/Database.h"
 #include "core/ITokenizer.h"
 #include "core/JobScheduler.h"
+#include "core/ModelDownloader.h"
 #include "core/Settings.h"
 #include "ui/CardListView.h"
 #include "ui/MainWindow.h"
@@ -141,9 +142,26 @@ private slots:
         QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); f.close();
         d.addCustomModel(f.fileName());
         QVERIFY2(d.modelNote()->text().contains(f.fileName()) && d.modelNote()->text().contains("お勧め"), qPrintable(d.modelNote()->text()));
-        d.addCustomModel(dir.filePath("ggml-small.bin"));                         // not there: where to get one
-        QVERIFY(d.modelNote()->text().contains("見つかりません"));
+        QTemporaryDir elsewhere;                                                  // not the models folder: a file of the user's own
+        d.addCustomModel(elsewhere.filePath("ggml-small.bin"));                   // not there: where to get one
+        QVERIFY2(d.modelNote()->text().contains("見つかりません"), qPrintable(d.modelNote()->text()));
         QVERIFY(d.modelNote()->text().contains(Settings::kModelDownloadUrl));
+        QVERIFY(d.modelNote()->property("error").toBool());
+    }
+    void bothDownloadableModelsAreOfferedAndAMissingOneSaysItWillBeFetched()
+    {
+        Settings st(db);
+        SettingsDialog d(st);
+        const QString turbo = ModelCatalog::path(*ModelCatalog::find("ggml-large-v3-turbo.bin"));
+        if (QFileInfo::exists(turbo)) QSKIP("large-v3-turbo is installed on this machine (the test never touches the real models folder)");
+        const int i = d.modelCombo()->findData(turbo);
+        QVERIFY2(i >= 0, "large-v3-turbo is on offer although not installed");
+        QVERIFY(d.modelCombo()->itemText(i).contains("未取得"));
+        d.modelCombo()->setCurrentIndex(i);
+        QVERIFY2(d.modelNote()->text().contains("ダウンロード"), qPrintable(d.modelNote()->text()));
+        QVERIFY(!d.modelNote()->property("error").toBool());
+        d.accept();
+        QCOMPARE(st.analysisConfig().modelPath, turbo);
     }
     void anUnknownLanguageCodeStaysSelectable()
     {
