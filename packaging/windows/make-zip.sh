@@ -10,6 +10,8 @@ rm -rf "$STAGE" && mkdir -p "$STAGE"
 cp "$BUILD/AudioKnowledgeExplorer.exe" "$BUILD/ake_cli.exe" "$STAGE/"
 cp LICENSE "$STAGE/"
 windeployqt6 --no-translations --no-system-d3d-compiler --no-opengl-sw "$STAGE/AudioKnowledgeExplorer.exe"
+# the other SQL drivers (MySQL, PostgreSQL, Firebird, ODBC) need server libraries nobody has here: only SQLite is used
+find "$STAGE/sqldrivers" -name '*.dll' ! -name 'qsqlite.dll' -delete
 # FFmpeg, SQLite, the C++ runtime ...: whatever the programs and the plugins still need from /ucrt64/bin
 for i in 1 2 3; do                          # a copied DLL may need more DLLs
     find "$STAGE" \( -name '*.exe' -o -name '*.dll' \) -print0 | xargs -0 ldd 2>/dev/null \

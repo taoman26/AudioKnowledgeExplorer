@@ -49,12 +49,13 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          set +e
           cd build/tests
           export QT_QPA_PLATFORM=offscreen
-          ldd ./tst_transcript_ui.exe | grep -i "not found" || echo "no missing DLLs"
-          timeout 120 ./tst_transcript_ui.exe -o /tmp/t.txt,txt -o -,txt; echo "exit=$?"
-          echo "--- file log"; tail -40 /tmp/t.txt || true
-          echo "--- only the failing class"; timeout 120 ./tst_transcript_ui.exe -v2 2>&1 | tail -30; echo "exit=${PIPESTATUS[0]}"
+          timeout 120 ./tst_transcript_ui.exe -v2 > /tmp/t.txt 2>&1; echo "exit=$?"
+          grep -n "FAIL\|Loc:\|Actual\|Expected\|Totals\|QFATAL\|crash" /tmp/t.txt | head -30
+          echo "--- tail"; tail -15 /tmp/t.txt
+          true
 
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
