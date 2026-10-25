@@ -8,6 +8,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QSqlQuery>
@@ -51,6 +52,9 @@
 #include "ui/TagPickerDialog.h"
 #include "ui/TranscriptView.h"
 #include "ui/Theme.h"
+
+// The icons live in a static library: its resource object file is only linked in when something refers to it.
+static void initIconResource() { Q_INIT_RESOURCE(icons); }
 
 namespace ake {
 
@@ -273,6 +277,27 @@ void MainWindow::updateModelBanner()
     m_modelBanner->setVisible(show);
 }
 
+QIcon MainWindow::appIcon()
+{
+    initIconResource();
+    QIcon icon;
+    for (int n : { 16, 32, 48, 64, 128, 256 }) icon.addFile(QStringLiteral(":/icons/%1.png").arg(n));
+    return icon;
+}
+
+QMessageBox* MainWindow::createAboutBox()
+{
+    auto* box = new QMessageBox(this);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setWindowTitle(tr("AudioKnowledgeExplorer について"));
+    box->setIconPixmap(appIcon().pixmap(96, 96));
+    box->setText(tr("<b>AudioKnowledgeExplorer</b> %1").arg(QCoreApplication::applicationVersion()));
+    box->setInformativeText(tr("録音を、検索できるナレッジカードにします。\n文字起こし・要約・検索はすべてこの PC の中だけで動きます。"));
+    return box;
+}
+
+void MainWindow::showAbout() { createAboutBox()->exec(); }
+
 void MainWindow::buildMenus()
 {
     for (const char* m : { "ファイル", "編集", "表示", "ライブラリ", "ツール", "ヘルプ" }) {
@@ -286,6 +311,11 @@ void MainWindow::buildMenus()
             QAction* quit = menu->addAction(tr("終了"));
             quit->setShortcut(QKeySequence::Quit);
             connect(quit, &QAction::triggered, this, &QWidget::close);
+            continue;
+        }
+        if (QString::fromUtf8(m) == "ヘルプ") {
+            QAction* about = menu->addAction(tr("AudioKnowledgeExplorer について"));
+            connect(about, &QAction::triggered, this, [this] { showAbout(); });
             continue;
         }
         if (QString::fromUtf8(m) == "ツール") {

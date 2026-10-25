@@ -1,4 +1,5 @@
 #pragma once
+#include <QIcon>
 #include <QMainWindow>
 #include <functional>
 
@@ -16,6 +17,7 @@ class QTimer;
 class QAction;
 class QLabel;
 class QPushButton;
+class QMessageBox;
 
 namespace ake {
 
@@ -64,6 +66,9 @@ public:
     void showSettingsDialog();
     // Download the configured model by itself when it is missing and one of the two we know (main.cpp turns this on; tests don't)
     void setAutoDownloadModel(bool on) { m_autoDownload = on; ensureModel(); }
+    static QIcon appIcon();                                   // the embedded icon, all sizes
+    QMessageBox* createAboutBox();                      // the Help > About box (caller shows it)
+    void showAbout();
     ModelDownloader* modelDownloader() const { return m_downloader; }
     void applySettings();                                     // push the stored values into scheduler / theme
     QAction* settingsAction() const { return m_settingsAction; }
