@@ -5,7 +5,7 @@ set -euo pipefail
 DIST=$(cd "$1" && pwd)
 T=$(mktemp -d)
 cd "$T" && unzip -q "$DIST"/*.zip && cd AudioKnowledgeExplorer-*
-export PATH=/c/Windows/System32:/c/Windows
+export PATH=/usr/bin:/c/Windows/System32:/c/Windows   # no /ucrt64/bin: only what is in the zip
 export APPDATA="$T/appdata" LOCALAPPDATA="$T/localappdata"
 ./ake_cli.exe --help | head -3
 ./ake_cli.exe --db "$T/x.db" seed-demo

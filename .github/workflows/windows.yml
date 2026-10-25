@@ -45,6 +45,14 @@ jobs:
         continue-on-error: true      # first runs: find out what the Unix-minded tests still assume; remove when green
         run: ctest --test-dir build --output-on-failure --timeout 300
 
+      - name: Failed tests, verbosely
+        if: always()
+        continue-on-error: true
+        run: |
+          for t in tst_transcript_ui tst_modeldownload; do
+            echo "=== $t"; (cd build/tests && QT_QPA_PLATFORM=offscreen ./$t.exe -v2 2>&1 | tail -40; echo "exit code: ${PIPESTATUS[0]}")
+          done
+
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
 
