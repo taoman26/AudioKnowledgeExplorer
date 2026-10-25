@@ -11,7 +11,7 @@ SHA256=9fabacabaf88e9cd0a1013a47fa56dcef1e8ccd49c4da25262f1fa31d8d52e13
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 curl -fsSL -o "$W/d.deb" "$URL"
 echo "$SHA256  $W/d.deb" | sha256sum -c -
-(cd "$W" && ar x d.deb && tar -xf data.tar.*)
+(cd "$W" && ar x d.deb && ls -la && tar -xf data.tar.* && echo "extracted") || { echo "extract failed: $?"; ls -la "$W"; exit 1; }
 SRC=$W/usr/share/mecab/dic/juman
 MDI=$(command -v mecab-dict-index || ls /ucrt64/libexec/mecab/mecab-dict-index* /ucrt64/lib/mecab/mecab-dict-index* 2>/dev/null | head -1)
 echo "mecab-dict-index: $MDI"
