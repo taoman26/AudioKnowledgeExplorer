@@ -11,6 +11,12 @@ echo "DLLs the programs and plugins cannot find with this PATH (must be none):"
 find . \( -name '*.exe' -o -name '*.dll' \) -print0 | xargs -0 ldd 2>/dev/null | grep "not found" | sort -u || true
 ./ake_cli.exe --help | head -3
 ./ake_cli.exe --db "$T/x.db" seed-demo
+export LC_ALL=C.UTF-8
+echo "--- MeCab in the unpacked folder:"
+./ake_cli.exe --db "$T/x.db" tokenize 検索できる録音 | tee "$T/tok.txt"; grep -q "tokenizer=mecab" "$T/tok.txt"
+# the same from a folder whose name has Japanese characters and a blank (MeCab opens files with the ANSI API)
+J="$T/日本語 フォルダ"; mkdir -p "$J" && cp -r . "$J/app"
+"$J/app/ake_cli.exe" --db "$T/x.db" tokenize 検索できる録音 | tee "$T/tok2.txt"; grep -q "tokenizer=mecab" "$T/tok2.txt"
 ./ake_cli.exe --db "$T/x.db" list | head -3
 # a window application has no console: its messages go to a file; a hang must not stall the job
 timeout 40 ./AudioKnowledgeExplorer.exe --db "$T/x.db" --grab "$T/shot.png" > "$T/app.log" 2>&1 || { echo "app exit code: $?"; cat "$T/app.log"; exit 1; }

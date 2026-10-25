@@ -7,7 +7,32 @@
 #include <QStringList>
 #include <mecab.h>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace ake {
+
+namespace {
+#ifdef Q_OS_WIN
+// MeCab opens its files with the ANSI API and splits its argument string at blanks: a folder with Japanese characters or a
+// space in its name ("C:\Users\山田 太郎\Downloads") cannot be given to it as it is. The 8.3 short name of the path has
+// neither. Returns "" when the path cannot be made plain (short names switched off on that drive).
+QString mecabSafePath(const QString& path)
+{
+    auto plain = [](const QString& p) { for (QChar c : p) if (c.unicode() >= 0x80 || c.isSpace()) return false; return true; };
+    if (plain(path)) return path;
+    const std::wstring w = QDir::toNativeSeparators(path).toStdWString();
+    wchar_t buf[2 * MAX_PATH];
+    const DWORD n = GetShortPathNameW(w.c_str(), buf, DWORD(sizeof(buf) / sizeof(buf[0])));
+    if (n == 0 || n >= sizeof(buf) / sizeof(buf[0])) return QString();
+    const QString shortPath = QDir::fromNativeSeparators(QString::fromWCharArray(buf, int(n)));
+    return plain(shortPath) ? shortPath : QString();
+}
+#else
+QString mecabSafePath(const QString& path) { return path; }
+#endif
+} // namespace
 
 struct MeCabTokenizer::Impl {
     mecab_t* mecab = nullptr;
@@ -21,13 +46,31 @@ std::unique_ptr<MeCabTokenizer> MeCabTokenizer::create(const QString& dicDir, QS
 {
     QString dir = dicDir.isEmpty() ? qEnvironmentVariable("AKE_MECAB_DICDIR") : dicDir;
     QByteArray args = "mecab";
+    bool packedDictionary = false;
     if (dir.isEmpty() && QCoreApplication::instance()) {
-        // the dictionary packed next to the executable (AppImage: <app>/usr/share/AudioKnowledgeExplorer/mecab/jumandic); it
-        // comes with its own empty rc file so that no /etc/mecabrc is needed either
-        const QString packed = QDir(QCoreApplication::applicationDirPath()).filePath("../share/AudioKnowledgeExplorer/mecab/jumandic");
-        if (QFile::exists(packed + "/sys.dic")) { dir = QDir::cleanPath(packed); args += " -r /dev/null"; }
+        // the dictionary packed next to the executable (AppImage: <app>/usr/share/AudioKnowledgeExplorer/mecab/jumandic;
+        // Windows zip: <app>/mecab/jumandic); it comes with its own empty rc file so that no /etc/mecabrc is needed either
+        const QDir app(QCoreApplication::applicationDirPath());
+        for (const char* rel : { "../share/AudioKnowledgeExplorer/mecab/jumandic", "mecab/jumandic" }) {
+            const QString packed = app.filePath(QString::fromLatin1(rel));
+            if (QFile::exists(packed + "/sys.dic")) { dir = QDir::cleanPath(packed); packedDictionary = true; break; }
+        }
     }
-    if (!dir.isEmpty()) args += " -d " + QFile::encodeName(dir);
+    if (!dir.isEmpty()) {
+        const QString safe = mecabSafePath(dir);
+        if (safe.isEmpty()) {
+            if (error) *error = QStringLiteral("the dictionary folder cannot be given to MeCab (Japanese characters or blanks in its path, and no short name): %1").arg(dir);
+            return nullptr;
+        }
+        dir = safe;
+#ifdef Q_OS_WIN
+        // Windows has no /dev/null: the dictionary folder holds an empty "mecabrc" (without it MeCab looks into the registry)
+        if (QFile::exists(dir + "/mecabrc")) args += " -r " + QFile::encodeName(dir + "/mecabrc");
+#else
+        if (packedDictionary) args += " -r /dev/null";
+#endif
+        args += " -d " + QFile::encodeName(dir);
+    }
     std::unique_ptr<MeCabTokenizer> t(new MeCabTokenizer);
     t->m_impl = std::make_unique<Impl>();
     t->m_impl->mecab = mecab_new2(args.constData());
