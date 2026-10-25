@@ -61,6 +61,14 @@ chmod +x dist/AudioKnowledgeExplorer-*.AppImage && dist/AudioKnowledgeExplorer-*
 - ビルドには Docker が必要で、Ubuntu 22.04 の中で行います(`Dockerfile` と `inner-build.sh` は `packaging/appimage/` にあります)。
 - **ライセンスの注意**: Ubuntu の FFmpeg は、GPL の部品を含むビルドです(Debian のパッケージのバイナリは GPL v2+ と明記されています)。GStreamer の `plugins-ugly` なども同梱します。そのため、**この AppImage は、MIT のアプリ本体とは別に、GPL の部品を含む配布物**です。配布するときは、同梱物のライセンス(`usr/share/doc/` にまとめています)と、ソースの入手先を示してください。
 
+### Windows(ポータブル zip)
+Windows 10 / 11(x64、AVX2 対応の CPU)向けに、展開して `AudioKnowledgeExplorer.exe` を起動するだけの zip を作ります(インストール不要)。ビルドは GitHub Actions の `Windows` ワークフロー(MSYS2 の MinGW-w64 UCRT64)で行い、PR と手動実行で、ビルド、全テスト、zip の作成、zip からの起動確認までを自動で確かめます。zip は、実行結果の artifact(`windows-zip`)から取れます。
+
+- ライブラリとモデルは `%APPDATA%\AudioKnowledgeExplorer` に保存されます。モデルは、無ければ初回起動時にダウンロードされます。
+- **MeCab は、まだ同梱していません**。Windows では n-gram の簡易な分かち書きで動きます(検索とキーワードの精度が、MeCab 版より下がります)。
+- 自分でビルドするときは、MSYS2 の UCRT64 シェルで、`pacman -S mingw-w64-ucrt-x86_64-{toolchain,cmake,ninja,pkgconf,qt6-base,qt6-multimedia,qt6-tools,ffmpeg}` のあと、`cmake -S . -B build -G Ninja -DAKE_PORTABLE=ON && cmake --build build`、`packaging/windows/make-zip.sh build dist` です。`-DAKE_WIN_CONSOLE=ON` を付けると、ターミナルにメッセージが出る版になります(デバッグ用)。
+- 署名はしていないので、初回起動時に SmartScreen の警告が出ることがあります。
+
 ### Haiku で MeCab を使う(ソースからビルド)
 MeCab 0.996 と JUMAN 辞書(UTF-8)を、ユーザー領域の `~/config/non-packaged` に入れます。Debian の配布元の tarball を使い、取得後に sha256 を確かめます。
 
