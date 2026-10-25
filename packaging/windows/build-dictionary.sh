@@ -13,7 +13,8 @@ curl -fsSL -o "$W/d.deb" "$URL"
 echo "$SHA256  $W/d.deb" | sha256sum -c -
 (cd "$W" && ar x d.deb && ls -la && tar -xf data.tar.* && echo "extracted") || { echo "extract failed: $?"; ls -la "$W"; exit 1; }
 SRC=$W/usr/share/mecab/dic/juman
-MDI=$(command -v mecab-dict-index || ls /ucrt64/libexec/mecab/mecab-dict-index* /ucrt64/lib/mecab/mecab-dict-index* 2>/dev/null | head -1)
+pacman -Ql mingw-w64-ucrt-x86_64-mecab | grep -v "/include/\|/share/" || true
+MDI=$(command -v mecab-dict-index || find /ucrt64 -iname 'mecab-dict-index*' | head -1)
 echo "mecab-dict-index: $MDI"
 "$MDI" -d "$SRC" -o "$OUT" -f utf-8 -t utf-8
 cp "$SRC/dicrc" "$OUT/"
