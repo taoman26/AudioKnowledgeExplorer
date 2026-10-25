@@ -2,6 +2,8 @@
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <atomic>
+#include <thread>
 
 #include "core/Database.h"
 #include "core/FFmpegDecoder.h"
@@ -231,6 +233,31 @@ private slots:
         // the instance stays usable after a cancel
         QVERIFY2(w.transcribe(pcm, {}, &r, &err), qPrintable(err));
         QVERIFY(!r.segments.isEmpty());
+    }
+    void cancelRequestedIsPolledWhileTheEngineRunsNotOnlyBetweenSegments()
+    {
+        const QString m = modelPath(), jfk = jfkPath();
+        if (m.isEmpty() || jfk.isEmpty()) QSKIP("set AKE_TEST_MODEL and AKE_TEST_JFK");
+        FFmpegDecoder dec;
+        std::vector<float> pcm; QString err;
+        QVERIFY(dec.decode(jfk, &pcm, nullptr, &err));
+        std::vector<float> longPcm;
+        for (int i = 0; i < 8; ++i) longPcm.insert(longPcm.end(), pcm.begin(), pcm.end());   // ~90 s: three windows
+        WhisperTranscriber w;
+        QVERIFY(w.load(m, &err));
+        TranscribeOptions opt;
+        opt.beamSize = 5;
+        opt.language = "en";   // the app's default is a fixed language; the language detection pass of "auto" cannot be interrupted
+        std::atomic<bool> stop{ false };
+        opt.cancelRequested = [&stop] { return stop.load(); };
+        QElapsedTimer t; t.start();
+        std::thread asker([&] { QThread::msleep(500); stop = true; });   // "the window was closed", half a second in
+        TranscriptResult r;
+        const bool ok = w.transcribe(longPcm, opt, &r, &err);   // no progress callback at all: only cancelRequested can stop it
+        asker.join();
+        QVERIFY(!ok);
+        QCOMPARE(err, QString("cancelled"));
+        QVERIFY2(t.elapsed() < 5000, qPrintable(QString::number(t.elapsed()) + " ms to stop"));
     }
     void transcriptCanBeStoredAndReloaded()
     {

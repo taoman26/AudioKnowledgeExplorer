@@ -75,6 +75,7 @@ bool AnalysisPipeline::run(const QString& audioPath, const AnalysisConfig& cfg, 
     opt.threads = cfg.threads;
     opt.beamSize = cfg.beamSize;
     if (cfg.suppressNst) opt.suppressNst = true;
+    opt.cancelRequested = [&cancel] { return cancel.load(); };
     const bool ok = m_transcriber->transcribe(pcm, opt, out, &err, [&](double f) {
         report(kStageTranscribe, base + f * (1.0 - base));
         return !cancel.load();
