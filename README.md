@@ -119,6 +119,8 @@ cmake --build build
 - `tiny` / `base` は軽いですが、日本語の精度は低いのでお勧めしません。量子化版(`-q5_0` など)は、小さく速い代わりに少し精度が下がります。
 - アプリの設定ダイアログ(Ctrl+,)でモデルを選ぶと、そのモデルの一言説明が出ます。モデルが無いときは、画面にも入手先が出ます。
 
+**標準の `small` と `large-v3-turbo` は、設定中のモデルが無ければアプリが自動でダウンロードします**(初回起動時と、設定でモデルを選んで OK したとき。進捗は画面上部に出て、「中止」できます。取得先は下記の Hugging Face)。それ以外のモデルは、次のどちらかで使います。
+
 取得先: [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp/tree/main)(例: `ggml-large-v3-turbo.bin`)。次のどちらかで使います。
 
 - 既定の場所に置く: `~/.local/share/AudioKnowledgeExplorer/models/`(Haiku は `~/config/settings/AudioKnowledgeExplorer/models/`)。**既定のモデルは `ggml-small.bin`** なので、turbo を使うときは、設定ダイアログで選びます。

@@ -125,6 +125,7 @@ int main(int argc, char** argv)
     else if (p.value(sortOpt) == "longest") w.setSortOrder(ake::RecordingListModel::SortOrder::Longest);
     w.setAudioPlayer(&audio);
     w.setScheduler(&scheduler);
+    w.setAutoDownloadModel(!p.isSet(grab) || qEnvironmentVariableIsSet("AKE_MODEL_BASE_URL"));   // a missing small / large-v3-turbo model is fetched (screenshots only with a test server)
     w.setScanService(&scanner);
     QObject::connect(&watcher, &ake::IFolderWatcher::changeSuspected, &scanner, &ake::ScanService::scanAll);
     watcher.start(ake::Settings(db).watchFolders() ? ake::Settings(db).scanIntervalSeconds() : 0);

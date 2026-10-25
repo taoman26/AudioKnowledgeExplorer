@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Multimedia Concurrent Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Multimedia Concurrent Network Test)
 find_package(PkgConfig REQUIRED)
 
 # MeCab (optional at build time: without it only the n-gram fallback tokenizer is built)
@@ -84,9 +84,10 @@ add_library(ake_core STATIC
     src/core/IFolderWatcher.h
     src/core/RecordingEditor.cpp
     src/core/JobScheduler.cpp
+    src/core/ModelDownloader.cpp
 )
 target_include_directories(ake_core PUBLIC src)
-target_link_libraries(ake_core PUBLIC Qt6::Core Qt6::Sql Qt6::Concurrent PkgConfig::FFMPEG whisper)
+target_link_libraries(ake_core PUBLIC Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network PkgConfig::FFMPEG whisper)
 if(MECAB_INCLUDE_DIR AND MECAB_LIBRARY)
     target_sources(ake_core PRIVATE src/core/MeCabTokenizer.cpp)
     target_include_directories(ake_core PRIVATE ${MECAB_INCLUDE_DIR})

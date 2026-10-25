@@ -60,6 +60,11 @@ mkdir -p $APPDIR/usr/plugins/sqldrivers
 cp $(qmake6 -query QT_INSTALL_PLUGINS)/sqldrivers/libqsqlite.so $APPDIR/usr/plugins/sqldrivers/
 linuxdeploy --appdir $APPDIR --deploy-deps-only $APPDIR/usr/plugins/sqldrivers
 
+# https for the model download: Qt's TLS backend plugin (OpenSSL) is not found by the Qt plugin tool either; libssl comes with its deps
+mkdir -p $APPDIR/usr/plugins/tls
+cp $(qmake6 -query QT_INSTALL_PLUGINS)/tls/libqopensslbackend.so $APPDIR/usr/plugins/tls/
+linuxdeploy --appdir $APPDIR --deploy-deps-only $APPDIR/usr/plugins/tls
+
 # the fcitx5 plugin goes next to the Qt ones that were just copied
 mkdir -p $APPDIR/usr/plugins/platforminputcontexts
 cp $WORK/fcitx5-qt/build/qt6/platforminputcontext/libfcitx5platforminputcontextplugin.so $APPDIR/usr/plugins/platforminputcontexts/

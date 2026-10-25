@@ -11,6 +11,7 @@
 #include <QVBoxLayout>
 
 #include "core/AnalysisPipeline.h"
+#include "core/ModelDownloader.h"
 #include "core/Settings.h"
 
 namespace ake {
@@ -56,6 +57,12 @@ SettingsDialog::SettingsDialog(Settings& settings, QWidget* parent)
     for (const auto& m : Settings::installedModels(Settings::modelDirectory())) {
         m_model->addItem(QStringLiteral("%1  (%2)").arg(m.name, sizeText(m.sizeBytes)), m.path);
         if (m.path == current) { m_model->setCurrentIndex(m_model->count() - 1); found = true; }
+    }
+    for (const ModelSpec& spec : ModelCatalog::models()) {   // the two we can download are always on offer
+        const QString path = ModelCatalog::path(spec);
+        if (spec.fileName == QFileInfo(AnalysisConfig::defaultModelPath()).fileName() || m_model->findData(path) >= 0) continue;
+        m_model->addItem(tr("%1  (未取得・約 %2)").arg(QFileInfo(spec.fileName).completeBaseName(), sizeText(spec.approxBytes)), path);
+        if (path == current) { m_model->setCurrentIndex(m_model->count() - 1); found = true; }
     }
     if (!found) addCustomModel(current);
     auto* browse = new QPushButton(tr("参照…"));
@@ -167,6 +174,14 @@ void SettingsDialog::updateModelNote()
     if (path.isEmpty()) path = AnalysisConfig::defaultModelPath();
     const bool ok = QFileInfo(path).isFile();
     const QString about = Settings::describeModel(QFileInfo(path).completeBaseName());
+    const ModelSpec* spec = ModelCatalog::find(QFileInfo(path).fileName());
+    if (!ok && spec && QFileInfo(path).absoluteFilePath() == QFileInfo(ModelCatalog::path(*spec)).absoluteFilePath()) {   // one we can fetch: say so instead of warning
+        m_modelNote->setText(tr("未取得です。OK を押すとダウンロードします(約 %1)。\n%2\n%3").arg(sizeText(spec->approxBytes), path, about));
+        m_modelNote->setProperty("error", false);
+        m_modelNote->style()->unpolish(m_modelNote);
+        m_modelNote->style()->polish(m_modelNote);
+        return;
+    }
     m_modelNote->setText(ok ? (about.isEmpty() ? path : path + QLatin1Char('\n') + about)
                             : tr("モデルファイルが見つかりません: %1\n解析するには、このファイルを置くか、別のモデルを選んでください。\n入手先: %2")
                                   .arg(path, QString::fromLatin1(Settings::kModelDownloadUrl)));

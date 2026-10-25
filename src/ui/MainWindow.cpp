@@ -45,6 +45,7 @@
 #include "ui/PlaybackController.h"
 #include "ui/QueueStatusWidget.h"
 #include "ui/SearchSuggestPopup.h"
+#include "core/ModelDownloader.h"
 #include "ui/RecordingListModel.h"
 #include "ui/SidebarWidget.h"
 #include "ui/TagPickerDialog.h"
@@ -209,6 +210,7 @@ void MainWindow::applySettings()
     if (m_scheduler) m_scheduler->setConfig(st.analysisConfig());   // read when the next job starts
     applyThemeName(st.theme());
     updateModelBanner();
+    ensureModel();
     emit settingsChanged();
 }
 
@@ -219,20 +221,55 @@ bool MainWindow::modelMissing() const
     return !QFileInfo::exists(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath);
 }
 
+void MainWindow::ensureModel()
+{
+    if (!m_autoDownload || !m_scheduler || !modelMissing()) return;
+    if (!m_downloader) {
+        m_downloader = new ModelDownloader(this);
+        connect(m_downloader, &ModelDownloader::progress, this, [this](qint64 got, qint64 total) {
+            m_dlReceived = got; m_dlTotal = total;
+            updateModelBanner();
+        });
+        connect(m_downloader, &ModelDownloader::finished, this, [this](bool ok, const QString& err) {
+            m_dlReceived = m_dlTotal = 0;
+            updateModelBanner();
+            if (!ok) { if (err != "cancelled") statusBar()->showMessage(err, 15000); return; }
+            statusBar()->showMessage(tr("モデルをダウンロードしました"), 8000);
+            if (m_scheduler && m_db && Settings(*m_db).autoAnalyze()) m_scheduler->enqueueAllNew();   // held back while the model was missing
+        });
+    }
+    if (m_downloader->isRunning()) return;
+    const AnalysisConfig& c = m_scheduler->config();
+    const QString path = c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath;
+    const ModelSpec* spec = ModelCatalog::find(QFileInfo(path).fileName());
+    if (!spec || QFileInfo(ModelCatalog::path(*spec)).absoluteFilePath() != QFileInfo(path).absoluteFilePath()) return;   // a model of the user's own: not ours to fetch
+    m_dlReceived = m_dlTotal = 0;
+    m_downloader->start(*spec);
+    updateModelBanner();
+}
+
 void MainWindow::updateModelBanner()
 {
     if (!m_modelBanner) return;
-    bool show = false;
-    if (m_db && modelMissing()) {                 // with no recording yet the empty state leads the way
+    const bool downloading = m_downloader && m_downloader->isRunning();
+    bool show = downloading;
+    if (!show && m_db && modelMissing()) {        // with no recording yet the empty state leads the way
         QSqlQuery q(m_db->handle());
         show = q.exec("SELECT 1 FROM recordings LIMIT 1") && q.next();
     }
-    if (show) {
+    if (downloading) {
+        const qint64 total = m_dlTotal > 0 ? m_dlTotal : (ModelCatalog::find(m_downloader->fileName()) ? ModelCatalog::find(m_downloader->fileName())->approxBytes : 0);
+        const QString pct = total > 0 ? QStringLiteral(" %1%").arg(qMin<qint64>(99, m_dlReceived * 100 / total)) : QString();
+        m_modelBannerText->setText(tr("文字起こしのモデル %1 をダウンロードしています…%2 (%3 MB)\n終わると、録音の解析が始まります。")
+                                       .arg(m_downloader->fileName(), pct).arg(m_dlReceived / 1'000'000));
+    } else if (show) {
         const AnalysisConfig& c = m_scheduler->config();
         m_modelBannerText->setText(tr("文字起こしのモデルが見つからないため、録音を解析できません。\n%1 にモデルファイル（ggml）を置くか、設定で別のモデルを選んでください。\n入手先: %2")
                                        .arg(c.modelPath.isEmpty() ? AnalysisConfig::defaultModelPath() : c.modelPath,
                                             QString::fromLatin1(Settings::kModelDownloadUrl)));
     }
+    if (m_bannerCancel) m_bannerCancel->setVisible(downloading);
+    if (m_bannerSettings) m_bannerSettings->setVisible(!downloading);
     m_modelBanner->setVisible(show);
 }
 
@@ -375,8 +412,14 @@ void MainWindow::buildCardArea()
     m_modelBannerText->setWordWrap(true);
     auto* bannerBtn = new QPushButton(tr("設定を開く"));
     bannerBtn->setCursor(Qt::PointingHandCursor);
+    m_bannerSettings = bannerBtn;
+    m_bannerCancel = new QPushButton(tr("中止"));
+    m_bannerCancel->setCursor(Qt::PointingHandCursor);
+    m_bannerCancel->hide();
     bh->addWidget(m_modelBannerText, 1);
     bh->addWidget(bannerBtn);
+    bh->addWidget(m_bannerCancel);
+    connect(m_bannerCancel, &QPushButton::clicked, this, [this] { if (m_downloader) m_downloader->cancel(); });
     m_modelBanner->hide();
     v->addWidget(m_modelBanner);
     connect(bannerBtn, &QPushButton::clicked, this, [this] { showSettingsDialog(); });
@@ -717,7 +760,9 @@ void MainWindow::onScanFinished(qint64, const ScanResult& r)
     refreshCards();
     // new or changed recordings: analyse them by themselves unless the user turned that off
     updateModelBanner();
-    if ((r.added || r.updated) && m_scheduler && m_db && Settings(*m_db).autoAnalyze()) m_scheduler->enqueueAllNew();
+    if ((r.added || r.updated) && m_scheduler && m_db && Settings(*m_db).autoAnalyze()
+        && !(m_downloader && m_downloader->isRunning()))   // the download's end starts them
+        m_scheduler->enqueueAllNew();
 }
 
 FolderDialog* MainWindow::createFolderDialog()
