@@ -34,6 +34,7 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-multimedia
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-ffmpeg
+            mingw-w64-ucrt-x86_64-gdb
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON -DAKE_WIN_CONSOLE=ON   # TEMPORARY: see the messages of the app
@@ -52,9 +53,9 @@ jobs:
           set +e
           cd build/tests
           export QT_QPA_PLATFORM=offscreen
-          timeout 120 ./tst_transcript_ui.exe -o /tmp/t2.txt,txt; echo "exit=$?"
-          grep -n -B1 -A4 "^FAIL" /tmp/t2.txt | head -60
-          grep -n "Totals" /tmp/t2.txt
+          timeout 200 gdb -batch -ex run --args ./tst_transcript_ui.exe > /tmp/g.txt 2>&1; echo "exit=$?"
+          grep -n -A3 "FAIL" /tmp/g.txt | cut -c1-250 | head -60
+          grep -n "Totals" /tmp/g.txt
           true
 
       - name: Portable zip
