@@ -19,6 +19,16 @@ for i in 1 2 3; do                          # a copied DLL may need more DLLs
             [ -f "$STAGE/$(basename "$dll")" ] || cp "$dll" "$STAGE/"
         done
 done
+# MeCab dictionary (built by build-dictionary.sh): the program looks for <exe dir>/mecab/jumandic
+if [ -n "${AKE_MECAB_DICT:-}" ]; then
+    mkdir -p "$STAGE/mecab/jumandic"
+    for f in sys.dic matrix.bin char.bin unk.dic dicrc mecabrc COPYRIGHT-jumandic.txt; do cp "$AKE_MECAB_DICT/$f" "$STAGE/mecab/jumandic/"; done   # not model.bin (only for training)
+    cat > "$STAGE/THIRD-PARTY.txt" <<TXT
+MeCab (libmecab.dll): Taku Kudo / NTT, BSD / LGPL / GPL (any one of them); https://taku910.github.io/mecab/
+JUMAN dictionary for MeCab (mecab/jumandic): University of Tokyo, Taku Kudo; BSD-3-clause, see mecab/jumandic/COPYRIGHT-jumandic.txt
+Qt 6 (LGPL v3, the DLLs next to the program can be replaced), FFmpeg (GPL / LGPL build of MSYS2), whisper.cpp (MIT).
+TXT
+fi
 cat > "$STAGE/README.txt" <<TXT
 AudioKnowledgeExplorer $VERSION (Windows, portable)
 Unpack the folder anywhere and start AudioKnowledgeExplorer.exe. Nothing is installed.

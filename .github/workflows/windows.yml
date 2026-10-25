@@ -34,6 +34,18 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-multimedia
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-ffmpeg
+            mingw-w64-ucrt-x86_64-mecab
+
+      - name: MeCab dictionary (JUMAN, compiled here; cached)
+        id: dict
+        uses: actions/cache@v4
+        with:
+          path: dict
+          key: jumandic-${{ hashFiles('packaging/windows/build-dictionary.sh') }}
+
+      - name: Build the MeCab dictionary
+        if: steps.dict.outputs.cache-hit != 'true'
+        run: packaging/windows/build-dictionary.sh dict/jumandic
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON
@@ -41,8 +53,13 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Tests
-        run: ctest --test-dir build --output-on-failure --timeout 300
+      - name: Tests (MeCab)
+        run: |
+          export AKE_MECAB_DICDIR=$(cygpath -m "$PWD/dict/jumandic")
+          ctest --test-dir build --output-on-failure --timeout 300
+
+      - name: Tests (n-gram fallback)
+        run: AKE_TOKENIZER=ngram ctest --test-dir build --output-on-failure --timeout 300
 
       - name: Transcription with a real model (tiny, in a folder with a Japanese name)
         run: |
@@ -55,7 +72,7 @@ jobs:
           cd build/tests && ./tst_transcribe.exe -o "$RUNNER_TEMP/tr.txt,txt" -v1; rc=$?; grep -E "^(PASS|FAIL|SKIP)|Totals|Actual|Expected|Loc:" "$RUNNER_TEMP/tr.txt"; exit $rc
 
       - name: Portable zip
-        run: packaging/windows/make-zip.sh build dist
+        run: AKE_MECAB_DICT=dict/jumandic packaging/windows/make-zip.sh build dist
 
       - name: Smoke test of the unpacked zip
         run: packaging/windows/smoke-test.sh dist

@@ -65,8 +65,8 @@ chmod +x dist/AudioKnowledgeExplorer-*.AppImage && dist/AudioKnowledgeExplorer-*
 Windows 10 / 11(x64、AVX2 対応の CPU)向けに、展開して `AudioKnowledgeExplorer.exe` を起動するだけの zip を作ります(インストール不要)。ビルドは GitHub Actions の `Windows` ワークフロー(MSYS2 の MinGW-w64 UCRT64)で行い、PR と手動実行で、ビルド、全テスト、zip の作成、zip からの起動確認までを自動で確かめます。zip は、実行結果の artifact(`windows-zip`)から取れます。
 
 - ライブラリとモデルは `%APPDATA%\AudioKnowledgeExplorer` に保存されます。モデルは、無ければ初回起動時にダウンロードされます。
-- **MeCab は、まだ同梱していません**。Windows では n-gram の簡易な分かち書きで動きます(検索とキーワードの精度が、MeCab 版より下がります)。
-- 自分でビルドするときは、MSYS2 の UCRT64 シェルで、`pacman -S mingw-w64-ucrt-x86_64-{toolchain,cmake,ninja,pkgconf,qt6-base,qt6-multimedia,qt6-tools,ffmpeg}` のあと、`cmake -S . -B build -G Ninja -DAKE_PORTABLE=ON && cmake --build build`、`packaging/windows/make-zip.sh build dist` です。`-DAKE_WIN_CONSOLE=ON` を付けると、ターミナルにメッセージが出る版になります(デバッグ用)。
+- **MeCab(JUMAN 辞書つき)を同梱しています**(zip の `mecab/jumandic`)。日本語や空白を含むフォルダに展開しても動きます(MeCab はファイルを ANSI で開くため、Windows では短い名前か、`%ProgramData%\\AudioKnowledgeExplorer\\mecab` へのコピーを使います。どちらも使えない環境では、n-gram の簡易な分かち書きに戻ります)。
+- 自分でビルドするときは、MSYS2 の UCRT64 シェルで、`pacman -S mingw-w64-ucrt-x86_64-{toolchain,cmake,ninja,pkgconf,qt6-base,qt6-multimedia,qt6-tools,ffmpeg,mecab}` のあと、`packaging/windows/build-dictionary.sh dict/jumandic`(辞書を作ります)、`cmake -S . -B build -G Ninja -DAKE_PORTABLE=ON && cmake --build build`、`AKE_MECAB_DICT=dict/jumandic packaging/windows/make-zip.sh build dist` です。`-DAKE_WIN_CONSOLE=ON` を付けると、ターミナルにメッセージが出る版になります(デバッグ用)。
 - 署名はしていないので、初回起動時に SmartScreen の警告が出ることがあります。
 
 ### Haiku で MeCab を使う(ソースからビルド)
