@@ -52,7 +52,7 @@ jobs:
           ls -la "$RUNNER_TEMP/モデル"
           export AKE_TEST_MODEL="$RUNNER_TEMP/モデル/ggml-tiny.bin" AKE_TEST_JFK="$PWD/build/_deps/whisper-src/samples/jfk.wav"
           ls -la "$AKE_TEST_JFK"
-          cd build/tests && ./tst_transcribe.exe -v1
+          cd build/tests && ./tst_transcribe.exe -o "$RUNNER_TEMP/tr.txt,txt" -v1; rc=$?; grep -E "^(PASS|FAIL|SKIP)|Totals|Actual|Expected|Loc:" "$RUNNER_TEMP/tr.txt"; exit $rc
 
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
