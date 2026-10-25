@@ -45,20 +45,16 @@ jobs:
         continue-on-error: true      # first runs: find out what the Unix-minded tests still assume; remove when green
         run: ctest --test-dir build --output-on-failure --timeout 300
 
-      - name: Where does the app stop? (temporary)
+      - name: tst_transcript_ui (temporary)
         if: always()
         continue-on-error: true
         run: |
-          cd build
+          cd build/tests
           export QT_QPA_PLATFORM=offscreen
-          ./ake_cli.exe --db /tmp/d.db seed-demo
-          try() { echo "--- $*"; timeout 25 ./AudioKnowledgeExplorer.exe "$@" > /tmp/o.log 2>&1; echo "exit=$?"; head -c 600 /tmp/o.log; echo; }
-          try --help
-          try --db /tmp/d.db --grab /tmp/a.png
-          try --db :memory: --grab /tmp/b.png
-          try --db /tmp/new.db --grab /tmp/c.png
-          QT_QPA_PLATFORM=windows try --db /tmp/e.db --grab /tmp/e.png
-          echo "--- tst_transcript_ui"; cd tests; timeout 120 ./tst_transcript_ui.exe -v2 > /tmp/t.log 2>&1 || echo "exit=$?"; tail -30 /tmp/t.log
+          ldd ./tst_transcript_ui.exe | grep -i "not found" || echo "no missing DLLs"
+          timeout 120 ./tst_transcript_ui.exe -o /tmp/t.txt,txt -o -,txt; echo "exit=$?"
+          echo "--- file log"; tail -40 /tmp/t.txt || true
+          echo "--- only the failing class"; timeout 120 ./tst_transcript_ui.exe -v2 2>&1 | tail -30; echo "exit=${PIPESTATUS[0]}"
 
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
