@@ -44,6 +44,15 @@ jobs:
       - name: Tests
         run: ctest --test-dir build --output-on-failure --timeout 300
 
+      - name: Transcription with a real model (tiny, in a folder with a Japanese name)
+        run: |
+          mkdir -p "$RUNNER_TEMP/モデル"
+          curl -fsSL -o "$RUNNER_TEMP/モデル/ggml-tiny.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          ls -la "$RUNNER_TEMP/モデル"
+          export AKE_TEST_MODEL="$RUNNER_TEMP/モデル/ggml-tiny.bin" AKE_TEST_JFK="$PWD/build/_deps/whisper-src/samples/jfk.wav"
+          ls -la "$AKE_TEST_JFK"
+          cd build/tests && ./tst_transcribe.exe -v1
+
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist
 
