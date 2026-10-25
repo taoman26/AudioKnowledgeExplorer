@@ -1,0 +1,66 @@
+# Windows build (MSYS2 / MinGW-w64 UCRT64): builds, runs the tests and keeps a portable zip as a workflow artifact.
+# There is no Windows machine on the dev side, so this workflow is where the Windows port is built and checked.
+# Runs for pull requests and by hand (Actions > Windows > Run workflow). It creates no release.
+name: Windows
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # git describe: the version shown in the app comes from the tags
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            zip
+            unzip
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-multimedia
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-ffmpeg
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Tests
+        run: ctest --test-dir build --output-on-failure --timeout 300
+
+      - name: Transcription with a real model (tiny, in a folder with a Japanese name)
+        run: |
+          export LC_ALL=C.UTF-8        # the shell must write the Japanese folder name as UTF-8
+          curl -fsSL -o "$RUNNER_TEMP/ggml-tiny.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          mkdir -p "$RUNNER_TEMP/モデル" && cp "$RUNNER_TEMP/ggml-tiny.bin" "$RUNNER_TEMP/モデル/ggml-tiny.bin"
+          ls -la "$RUNNER_TEMP/モデル"
+          export AKE_TEST_MODEL="$RUNNER_TEMP/モデル/ggml-tiny.bin" AKE_TEST_JFK="$PWD/build/_deps/whisper-src/samples/jfk.wav"
+          ls -la "$AKE_TEST_JFK"
+          cd build/tests && ./tst_transcribe.exe -o "$RUNNER_TEMP/tr.txt,txt" -v1; rc=$?; grep -E "^(PASS|FAIL|SKIP)|Totals|Actual|Expected|Loc:" "$RUNNER_TEMP/tr.txt"; exit $rc
+
+      - name: Portable zip
+        run: packaging/windows/make-zip.sh build dist
+
+      - name: Smoke test of the unpacked zip
+        run: packaging/windows/smoke-test.sh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: dist/*.zip

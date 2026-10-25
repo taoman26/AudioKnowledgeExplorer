@@ -4,6 +4,7 @@
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include "core/AppPaths.h"
@@ -56,7 +57,8 @@ private slots:
     {
         QVERIFY(server.listen(QHostAddress::LocalHost));
         qputenv("AKE_MODEL_BASE_URL", "http://127.0.0.1:" + QByteArray::number(server.serverPort()));
-        QVERIFY2(AppPaths::modelDirectory().contains("ake_modeltest"), qPrintable(AppPaths::modelDirectory()));   // never the user's real folder
+        QVERIFY2(AppPaths::modelDirectory().contains("ake_modeltest") || QStandardPaths::isTestModeEnabled(),
+                 qPrintable(AppPaths::modelDirectory()));   // never the user's real folder
     }
     void catalogHasTwoModelsAndUrlsFollowTheBase()
     {
@@ -112,8 +114,12 @@ private slots:
 
 int main(int argc, char** argv)
 {
-    QTemporaryDir home("/tmp/ake_modeltest_XXXXXX");   // the models folder is resolved from XDG_DATA_HOME
+#ifdef Q_OS_WIN
+    QStandardPaths::setTestModeEnabled(true);          // Windows ignores XDG_DATA_HOME: Qt's test mode moves the app data folder instead
+#else
+    QTemporaryDir home(QDir::tempPath() + "/ake_modeltest_XXXXXX");   // the models folder is resolved from XDG_DATA_HOME
     qputenv("XDG_DATA_HOME", home.path().toUtf8());
+#endif
     QCoreApplication app(argc, argv);
     app.setApplicationName("AudioKnowledgeExplorer");
     TstModelDownload t;
