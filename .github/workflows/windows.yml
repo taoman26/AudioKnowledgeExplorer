@@ -49,9 +49,9 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          for t in tst_transcript_ui tst_modeldownload; do
-            echo "=== $t"; (cd build/tests && QT_QPA_PLATFORM=offscreen ./$t.exe -v2 2>&1 | tail -40; echo "exit code: ${PIPESTATUS[0]}")
-          done
+          cd build/tests
+          QT_QPA_PLATFORM=offscreen timeout 120 ./tst_transcript_ui.exe -v2 > ../../tui.log 2>&1; echo "exit code: $?"
+          tail -60 ../../tui.log
 
       - name: Portable zip
         run: packaging/windows/make-zip.sh build dist

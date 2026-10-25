@@ -10,5 +10,7 @@ export APPDATA="$T/appdata" LOCALAPPDATA="$T/localappdata"
 ./ake_cli.exe --help | head -3
 ./ake_cli.exe --db "$T/x.db" seed-demo
 ./ake_cli.exe --db "$T/x.db" list | head -3
-QT_QPA_PLATFORM=offscreen ./AudioKnowledgeExplorer.exe --db "$T/x.db" --grab "$T/shot.png"
+# a window application has no console: its messages go to a file; a hang must not stall the job
+QT_QPA_PLATFORM=offscreen timeout 90 ./AudioKnowledgeExplorer.exe --db "$T/x.db" --grab "$T/shot.png" > "$T/app.log" 2>&1 || { echo "app exit code: $?"; cat "$T/app.log"; exit 1; }
+cat "$T/app.log"
 test -s "$T/shot.png" && echo "screenshot ok: $(stat -c %s "$T/shot.png") bytes"
