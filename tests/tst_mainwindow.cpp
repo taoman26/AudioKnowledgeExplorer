@@ -2,6 +2,7 @@
 #include <QRegularExpression>
 #include <QSplitter>
 #include <QtTest>
+#include <QMessageBox>
 
 #include "ui/MainWindow.h"
 #include "ui/Theme.h"
@@ -9,6 +10,18 @@
 class TstMainWindow : public QObject {
     Q_OBJECT
 private slots:
+    void embeddedIconHasEverySizeAndTheAboutBoxShowsIt()
+    {
+        const QIcon icon = ake::MainWindow::appIcon();
+        QVERIFY(!icon.isNull());
+        QCOMPARE(icon.availableSizes().size(), 6);
+        for (int n : { 16, 32, 48, 64, 128, 256 }) QVERIFY2(!icon.pixmap(n, n).isNull(), qPrintable(QString::number(n)));
+        ake::MainWindow w;
+        QMessageBox* box = w.createAboutBox();
+        QVERIFY(!box->iconPixmap().isNull());
+        QVERIFY(box->text().contains("AudioKnowledgeExplorer"));
+        delete box;
+    }
     void threePaneLayout()
     {
         ake::MainWindow w;

@@ -51,7 +51,7 @@ cd $WORK
 linuxdeploy --appdir $APPDIR \
     --executable $APPDIR/usr/bin/AudioKnowledgeExplorer --executable $APPDIR/usr/bin/ake_cli \
     --desktop-file $SRC/packaging/appimage/AudioKnowledgeExplorer.desktop \
-    --icon-file $SRC/packaging/appimage/audioknowledgeexplorer.svg --icon-filename audioknowledgeexplorer \
+    --icon-file $SRC/packaging/icons/audioknowledgeexplorer.svg $(for n in 16 32 48 64 128 256 512; do echo --icon-file $SRC/packaging/icons/hicolor/${n}x${n}/apps/audioknowledgeexplorer.png; done) --icon-filename audioknowledgeexplorer \
     --plugin qt --plugin gstreamer
 
 # the database driver: the Qt plugin tool finds the Sql module but does not copy its plugin (Qt 6.2 from Ubuntu); the library it

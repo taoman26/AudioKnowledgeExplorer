@@ -32,6 +32,9 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName("AudioKnowledgeExplorer");
+    QApplication::setApplicationVersion(QStringLiteral(AKE_APP_VERSION));
+    QApplication::setDesktopFileName("AudioKnowledgeExplorer");   // launchers / Wayland match the window to the .desktop file and its icon
+    QApplication::setWindowIcon(ake::MainWindow::appIcon());
 #ifdef AKE_PORTABLE
     // The speech engine is built for AVX2/FMA/F16C: on an older CPU it would die with "illegal instruction" in the middle of
     // an analysis. Say so at once instead.
@@ -158,7 +161,8 @@ int main(int argc, char** argv)
 
     QWidget* shot = &w;
     if (p.isSet(dialogOpt)) {
-        QDialog* dlg = p.value(dialogOpt) == "settings" ? static_cast<QDialog*>(w.createSettingsDialog())
+        QDialog* dlg = p.value(dialogOpt) == "about" ? static_cast<QDialog*>(w.createAboutBox()) :
+                       p.value(dialogOpt) == "settings" ? static_cast<QDialog*>(w.createSettingsDialog())
                                                          : static_cast<QDialog*>(w.createFolderDialog());
         if (dlg) { dlg->show(); shot = dlg; }
         else qWarning("--show-dialog: unknown name or no database");

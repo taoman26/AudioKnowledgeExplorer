@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Multimedia Concurrent Network Test)
@@ -122,11 +123,13 @@ add_library(ake_ui STATIC
     src/ui/SidebarWidget.cpp
     src/ui/TagPickerDialog.cpp
 )
+target_sources(ake_ui PRIVATE resources/icons.qrc)
 target_include_directories(ake_ui PUBLIC src)
 target_link_libraries(ake_ui PUBLIC ake_core Qt6::Widgets)
 
 add_executable(AudioKnowledgeExplorer src/main.cpp)
 target_link_libraries(AudioKnowledgeExplorer PRIVATE ake_ui ake_audio)
+target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_APP_VERSION="${PROJECT_VERSION}")
 if(AKE_PORTABLE)
     target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_PORTABLE=1)
 endif()
