@@ -60,7 +60,11 @@ bool fail(QString* out, const QString& msg)
 bool openInput(const QString& path, Fmt* fmt, int* streamIdx, const AVCodec** codec, QString* error)
 {
     AVFormatContext* raw = nullptr;
+#ifdef Q_OS_WIN
+    const QByteArray p = path.toUtf8();   // FFmpeg converts UTF-8 to wide characters itself on Windows
+#else
     const QByteArray p = QFile::encodeName(path);
+#endif
     int r = avformat_open_input(&raw, p.constData(), nullptr, nullptr);
     if (r < 0)
         return fail(error, QStringLiteral("cannot open: %1").arg(avErr(r)));

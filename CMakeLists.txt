@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(AudioKnowledgeExplorer VERSION 0.1.0 LANGUAGES CXX)
+if(WIN32)
+    enable_language(RC)   # the exe icon
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -127,7 +130,12 @@ target_sources(ake_ui PRIVATE resources/icons.qrc)
 target_include_directories(ake_ui PUBLIC src)
 target_link_libraries(ake_ui PUBLIC ake_core Qt6::Widgets)
 
-add_executable(AudioKnowledgeExplorer src/main.cpp)
+if(WIN32)
+    # WIN32: a window application (no console box behind it); the icon is in the resource file
+    add_executable(AudioKnowledgeExplorer WIN32 src/main.cpp packaging/windows/app.rc)
+else()
+    add_executable(AudioKnowledgeExplorer src/main.cpp)
+endif()
 target_link_libraries(AudioKnowledgeExplorer PRIVATE ake_ui ake_audio)
 # The version shown in the window title and the About box: the release tag (git describe, without the "v"), e.g. 0.1.0-alpha.3,
 # or 0.1.0-alpha.3-2-gabc1234 between releases. -DAKE_VERSION_LABEL=... overrides it (the AppImage build, no .git); without

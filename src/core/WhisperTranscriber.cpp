@@ -55,7 +55,21 @@ bool WhisperTranscriber::load(const QString& modelPath, QString* error)
     }
     whisper_context_params cp = whisper_context_default_params();
     cp.use_gpu = false;
+#ifdef Q_OS_WIN
+    // whisper opens a path with the ANSI code page on Windows: a model under a Japanese user name would not be found.
+    // Read it through QFile instead (UTF-16 paths).
+    QFile modelFile(modelPath);
+    if (modelFile.open(QIODevice::ReadOnly)) {
+        whisper_model_loader loader{};
+        loader.context = &modelFile;
+        loader.read = [](void* ctx, void* out, size_t n) { return size_t(qMax<qint64>(0, static_cast<QFile*>(ctx)->read(static_cast<char*>(out), qint64(n)))); };
+        loader.eof = [](void* ctx) { return static_cast<QFile*>(ctx)->atEnd(); };
+        loader.close = [](void*) {};
+        m_ctx = whisper_init_with_params(&loader, cp);
+    }
+#else
     m_ctx = whisper_init_from_file_with_params(QFile::encodeName(modelPath).constData(), cp);
+#endif
     if (!m_ctx) {
         if (error) *error = QStringLiteral("cannot load model (not a ggml whisper model?): %1").arg(modelPath);
         return false;

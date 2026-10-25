@@ -84,6 +84,8 @@ def main():
         p = os.path.join(ROOT, "packaging/icons/hicolor/%dx%d/apps" % (n, n))
         os.makedirs(p, exist_ok=True)
         render(n).save(os.path.join(p, "audioknowledgeexplorer.png"))
+    big = render(256)                                 # Windows icon: several sizes in one .ico
+    big.save(os.path.join(ROOT, "packaging/icons/audioknowledgeexplorer.ico"), sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
     os.makedirs(os.path.join(ROOT, "resources/icons"), exist_ok=True)
     for n in EMBED:
         render(n).save(os.path.join(ROOT, "resources/icons/%d.png" % n))
