@@ -10,6 +10,17 @@
 class TstMainWindow : public QObject {
     Q_OBJECT
 private slots:
+    void theVersionIsInTheWindowTitleAndTheAboutBox()
+    {
+        const QString old = QCoreApplication::applicationVersion();
+        QCoreApplication::setApplicationVersion("0.1.0-alpha.9");
+        ake::MainWindow w;
+        QCOMPARE(w.windowTitle(), QString("AudioKnowledgeExplorer 0.1.0-alpha.9"));
+        QMessageBox* box = w.createAboutBox();
+        QVERIFY2(box->text().contains("0.1.0-alpha.9"), qPrintable(box->text()));
+        delete box;
+        QCoreApplication::setApplicationVersion(old);
+    }
     void embeddedIconHasEverySizeAndTheAboutBoxShowsIt()
     {
         const QIcon icon = ake::MainWindow::appIcon();

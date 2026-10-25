@@ -129,7 +129,25 @@ target_link_libraries(ake_ui PUBLIC ake_core Qt6::Widgets)
 
 add_executable(AudioKnowledgeExplorer src/main.cpp)
 target_link_libraries(AudioKnowledgeExplorer PRIVATE ake_ui ake_audio)
-target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_APP_VERSION="${PROJECT_VERSION}")
+# The version shown in the window title and the About box: the release tag (git describe, without the "v"), e.g. 0.1.0-alpha.3,
+# or 0.1.0-alpha.3-2-gabc1234 between releases. -DAKE_VERSION_LABEL=... overrides it (the AppImage build, no .git); without
+# either it is the CMake version. Read when CMake configures: re-run cmake after tagging.
+if(NOT AKE_VERSION_LABEL)
+    find_package(Git QUIET)
+    if(GIT_FOUND)
+        execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE AKE_VERSION_LABEL OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        string(REGEX REPLACE "^v" "" AKE_VERSION_LABEL "${AKE_VERSION_LABEL}")
+        if(NOT AKE_VERSION_LABEL MATCHES "^[0-9]")        # --always gave a bare commit id (no tag reachable)
+            set(AKE_VERSION_LABEL "")
+        endif()
+    endif()
+endif()
+if(NOT AKE_VERSION_LABEL)
+    set(AKE_VERSION_LABEL "${PROJECT_VERSION}")
+endif()
+message(STATUS "Version shown in the app: ${AKE_VERSION_LABEL}")
+target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_APP_VERSION="${AKE_VERSION_LABEL}")
 if(AKE_PORTABLE)
     target_compile_definitions(AudioKnowledgeExplorer PRIVATE AKE_PORTABLE=1)
 endif()
