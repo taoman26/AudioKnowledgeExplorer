@@ -36,7 +36,7 @@ jobs:
             mingw-w64-ucrt-x86_64-ffmpeg
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON -DAKE_WIN_CONSOLE=ON   # TEMPORARY: see the messages of the app
 
       - name: Build
         run: cmake --build build
@@ -50,7 +50,7 @@ jobs:
         continue-on-error: true
         run: |
           cd build/tests
-          QT_QPA_PLATFORM=offscreen timeout 120 ./tst_transcript_ui.exe -v2 > ../../tui.log 2>&1; echo "exit code: $?"
+          QT_QPA_PLATFORM=offscreen timeout 120 ./tst_transcript_ui.exe -v2 > ../../tui.log 2>&1 || echo "exit code: $?"
           tail -60 ../../tui.log
 
       - name: Portable zip
