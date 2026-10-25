@@ -74,7 +74,9 @@ static QWidget* makePane(const QString& objectName, const QString& label)
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("AudioKnowledgeExplorer");
+    setWindowTitle(QCoreApplication::applicationVersion().isEmpty()
+                       ? QStringLiteral("AudioKnowledgeExplorer")
+                       : QStringLiteral("AudioKnowledgeExplorer %1").arg(QCoreApplication::applicationVersion()));
     resize(1480, 860);
     static const QPalette systemPalette = QApplication::palette();   // before any theme replaces it: what "follow the system" means
     m_systemPalette = systemPalette;

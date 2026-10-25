@@ -16,7 +16,7 @@ fetch $GH/linuxdeploy-plugin-gstreamer/raw/master/linuxdeploy-plugin-gstreamer.s
 export PATH=$WORK/tools:$PATH
 
 echo "== build the app (portable: AVX2 / FMA / F16C, no -march=native)"
-cmake -S $SRC -B $WORK/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON \
+cmake -S $SRC -B $WORK/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAKE_PORTABLE=ON -DAKE_VERSION_LABEL=$VERSION \
     ${AKE_WHISPER_DIR:+-DAKE_WHISPER_DIR=$AKE_WHISPER_DIR}
 cmake --build $WORK/build --target AudioKnowledgeExplorer ake_cli
 
