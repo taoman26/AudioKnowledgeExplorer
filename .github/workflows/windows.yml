@@ -46,8 +46,9 @@ jobs:
 
       - name: Transcription with a real model (tiny, in a folder with a Japanese name)
         run: |
-          mkdir -p "$RUNNER_TEMP/モデル"
-          curl -fsSL -o "$RUNNER_TEMP/モデル/ggml-tiny.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          export LC_ALL=C.UTF-8        # the shell must write the Japanese folder name as UTF-8
+          curl -fsSL -o "$RUNNER_TEMP/ggml-tiny.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+          mkdir -p "$RUNNER_TEMP/モデル" && cp "$RUNNER_TEMP/ggml-tiny.bin" "$RUNNER_TEMP/モデル/ggml-tiny.bin"
           ls -la "$RUNNER_TEMP/モデル"
           export AKE_TEST_MODEL="$RUNNER_TEMP/モデル/ggml-tiny.bin" AKE_TEST_JFK="$PWD/build/_deps/whisper-src/samples/jfk.wav"
           ls -la "$AKE_TEST_JFK"
