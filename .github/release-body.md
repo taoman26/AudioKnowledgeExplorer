@@ -8,7 +8,7 @@ chmod +x AudioKnowledgeExplorer-*.AppImage && ./AudioKnowledgeExplorer-*.AppImag
 
 - 動作条件: x86-64 の Linux、glibc 2.35 以上(Ubuntu 22.04 以降が目安)、**AVX2 / FMA / F16C 対応の CPU(2013 年以降)**。FUSE 2(Ubuntu では `libfuse2`)が必要です。無いときは `--appimage-extract-and-run` を付けて実行してください。
 - 表示は X11(xcb)です。Wayland のデスクトップでは XWayland を使います。
-- **whisper のモデルは同梱していません。** 初回起動時に、置き場所と入手先が画面に出ます([README](https://github.com/taoman26/AudioKnowledgeExplorer#モデルの用意))。日本語には `ggml-large-v3-turbo.bin` をお勧めします。
+- **whisper のモデルは同梱していません。** 設定中のモデル(標準は `ggml-small.bin`)が無ければ、起動時に、アプリが Hugging Face から自動でダウンロードします(約 0.5 GB。進捗は画面上部に出て、中止もできます)。設定で `large-v3-turbo`(約 1.6 GB)も選べます。日本語にはこちらをお勧めします([README](https://github.com/taoman26/AudioKnowledgeExplorer#モデルの用意))。
 - 日本語入力(fcitx5)用のプラグインが入っています。
 
 ### ライセンスとソース
