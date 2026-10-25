@@ -217,22 +217,29 @@ private slots:
         openView(docker);
         view->setSearchText("podman");
         QVERIFY(view->hitCount() >= 2);
-        const auto sample = [&](int row) {                              // colour at the first highlighted character of a row
+        // What a row looks like, counted over the whole row (not one pixel at a font-dependent place): pixels of the accent
+        // (blue-ish: the current hit) and of the yellow highlight (the other hits).
+        struct Look { int accent = 0, yellow = 0; };
+        const auto look = [&](int row) {
             const QImage img = view->list()->viewport()->grab().toImage();
-            const auto h = view->model()->highlightsOf(row);
-            QFont f = view->list()->font(); f.setPixelSize(14);
-            const int x = 18 + 92 + QFontMetrics(f).horizontalAdvance(view->model()->text(row).left(h[0])) + 3;
-            const QRect r = rowRect(row);
-            return img.pixelColor(x, r.top() + 7 + 11);
+            const QRect r = rowRect(row).intersected(img.rect());
+            Look l;
+            for (int y = r.top(); y <= r.bottom(); ++y)
+                for (int x = r.left(); x <= r.right(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.blue() > c.red() + 60 && c.blue() > 120) ++l.accent;
+                    else if (c.red() > 200 && c.green() > 180 && c.blue() < 170) ++l.yellow;
+                }
+            return l;
         };
         const int curRow = view->model()->hits()[view->currentHitIndex()].row;
         int otherRow = -1;
         for (const auto& h : view->model()->hits()) if (h.row != curRow) { otherRow = h.row; break; }
         QVERIFY(otherRow >= 0 && rowVisible(otherRow) && rowVisible(curRow));
-        const QColor cur = sample(curRow), other = sample(otherRow);
-        QVERIFY2(cur != other, qPrintable(cur.name() + " vs " + other.name()));
-        QVERIFY2(cur.blue() > cur.red(), qPrintable("current hit should be accent (blue-ish): " + cur.name()));
-        QVERIFY2(other.red() > other.blue(), qPrintable("other hits should be the yellow highlight: " + other.name()));
+        const Look cur = look(curRow), other = look(otherRow);
+        const QString what = QStringLiteral("current: accent %1 yellow %2; other: accent %3 yellow %4").arg(cur.accent).arg(cur.yellow).arg(other.accent).arg(other.yellow);
+        QVERIFY2(cur.accent > other.accent, qPrintable("the current hit should be drawn in the accent colour: " + what));
+        QVERIFY2(other.yellow > cur.yellow, qPrintable("the other hits should have the yellow highlight: " + what));
     }
     void openingAtATimeWithAQueryLandsOnTheFirstHitAfterIt()
     {
